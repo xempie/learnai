@@ -117,7 +117,13 @@ if [ -z "$PAID_ID" ]; then warn "no paid topic with 3+ episodes - skipping paywa
   # Episodes 1-2 pass the gate. 409 = gate passed but no media uploaded yet.
   expect "free: episode 1 allowed" "$(status $FREE_JAR POST /api/v1/topics/$PAID_ID/playback "{\"episodeId\":\"$L1\"}")" 200 409
   expect "free: episode 2 allowed" "$(status $FREE_JAR POST /api/v1/topics/$PAID_ID/playback "{\"episodeId\":\"$L2\"}")" 200 409
-  expect "free: episode 3 LOCKED"  "$(status $FREE_JAR POST /api/v1/topics/$PAID_ID/playback "{\"episodeId\":\"$L3\"}")" 403
+  # SERVICES_ACTION_PLAN §1 / FEATURE_FREE_PLATFORM (default true): the platform
+  # is now the funnel, not the revenue line - every verified account, including
+  # free tier, gets full access. When free-platform is on, episode 3 is NOT
+  # locked for a free account (entitlements.ts fullTier via reason
+  # "free_platform"). This assertion only holds while FEATURE_FREE_PLATFORM=true;
+  # flip both this and the FAIL branch below if the flag ever defaults to false.
+  expect "free: episode 3 allowed (free platform)" "$(status $FREE_JAR POST /api/v1/topics/$PAID_ID/playback "{\"episodeId\":\"$L3\"}")" 200 409
   expect "admin: episode 3 allowed" "$(status $ADMIN_JAR POST /api/v1/topics/$PAID_ID/playback "{\"episodeId\":\"$L3\"}")" 200 409
   expect "anon: playback rejected" "$(status $ANON_JAR POST /api/v1/topics/$PAID_ID/playback "{\"episodeId\":\"$L1\"}")" 401
   expect "intro is free to watch" "$(status $FREE_JAR POST /api/v1/topics/$PAID_ID/intro)" 200 404
