@@ -51,6 +51,10 @@ const TIMEZONE_SUGGESTIONS = [
   "UTC",
 ];
 
+// SERVICES_ACTION_PLAN §1: billing UI is dead weight while the platform is
+// free for everyone - keep the component mounted-capable, just don't render it.
+const billingEnabled = process.env.NEXT_PUBLIC_FREE_PLATFORM !== "true";
+
 export function SettingsView() {
   const { user, loading, error, reload, setUser } = useCurrentUser();
 
@@ -101,7 +105,7 @@ export function SettingsView() {
       </header>
 
       <ProfileSection user={user} onSaved={setUser} />
-      <SubscriptionSection />
+      {billingEnabled && <SubscriptionSection />}
       <AccountSection />
     </div>
   );

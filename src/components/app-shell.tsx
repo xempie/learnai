@@ -167,7 +167,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname === href || pathname.startsWith(`${href}/`);
 
   const isAdmin = user !== null && ADMIN_ROLES.has(user.role);
-  const daysLeft = user ? trialDaysLeft(user.entitlements) : null;
+  // SERVICES_ACTION_PLAN §1: nobody is on a countdown while the platform is
+  // free for everyone - reason is "free_platform" for every user in that case.
+  const daysLeft =
+    user && user.entitlements.reason !== "free_platform" ? trialDaysLeft(user.entitlements) : null;
 
   return (
     <CurrentUserContext.Provider value={value}>
