@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Mail } from "lucide-react";
 import { api } from "@/lib/api-client";
 import {
@@ -172,16 +172,45 @@ export function LeadsView() {
     );
   }
 
+  // A snapshot captured at the start of a mutation goes stale the instant a
+  // second mutation lands before the first's response comes back - splicing
+  // the PATCH response into that stale snapshot would silently discard
+  // whichever change resolved first. `list.reload()` (the same pattern
+  // `coupons-view.tsx`'s `mutate()` uses) always resyncs from the server
+  // instead, so two overlapping edits both survive.
+  //
+  // For notes, the busy state is kept until that reload actually resolves
+  // (tracked here, since `useAsync`'s `reload()` is fire-and-forget) so the
+  // Save button doesn't flip back to idle while the row still shows
+  // pre-save data.
+  const notesResyncRef = useRef<{ id: string; started: boolean } | null>(null);
+
+  useEffect(() => {
+    const pending = notesResyncRef.current;
+    if (!pending) return;
+    if (list.loading) {
+      pending.started = true;
+      return;
+    }
+    if (pending.started) {
+      setNotesBusyId(null);
+      notesResyncRef.current = null;
+    }
+  }, [list.loading]);
+
   async function updateStatus(lead: Lead, next: LeadStatus) {
     if (!list.data || next === lead.status) return;
     const previous = list.data;
     const optimistic = previous.data.map((l) => (l.id === lead.id ? { ...l, status: next } : l));
+    // Optimistic for instant feedback; the value shown is already correct, so
+    // the busy flag can clear as soon as the PATCH itself settles rather than
+    // waiting on the resync below.
     list.set({ ...previous, data: optimistic });
     setStatusBusyId(lead.id);
     setActionError("");
     try {
-      const updated = await api.patch<Lead>(`/admin/leads/${lead.id}`, { status: next });
-      list.set({ ...previous, data: optimistic.map((l) => (l.id === lead.id ? updated : l)) });
+      await api.patch<Lead>(`/admin/leads/${lead.id}`, { status: next });
+      list.reload();
       metrics.reload();
     } catch (err) {
       list.set(previous);
@@ -192,20 +221,14 @@ export function LeadsView() {
   }
 
   async function saveNotes(lead: Lead) {
-    if (!list.data) return;
-    const draft = notesDrafts[lead.id] ?? "";
     setNotesBusyId(lead.id);
     setActionError("");
     try {
-      const updated = await api.patch<Lead>(`/admin/leads/${lead.id}`, { notes: draft });
-      const previous = list.data;
-      list.set({
-        ...previous,
-        data: previous.data.map((l) => (l.id === lead.id ? updated : l)),
-      });
+      await api.patch<Lead>(`/admin/leads/${lead.id}`, { notes: notesDrafts[lead.id] ?? "" });
+      notesResyncRef.current = { id: lead.id, started: false };
+      list.reload();
     } catch (err) {
       setActionError(errorMessage(err));
-    } finally {
       setNotesBusyId(null);
     }
   }
