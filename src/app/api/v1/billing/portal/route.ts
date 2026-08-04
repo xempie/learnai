@@ -15,6 +15,12 @@ export const dynamic = "force-dynamic";
 export const POST = handler(async (req: Request) => {
   const user = await requireAuth();
 
+  // The platform is free (SERVICES_ACTION_PLAN §1) - billing stays dormant even
+  // if Stripe credentials are configured.
+  if (!config.flags.billing || config.flags.freePlatform) {
+    throw new ApiError("NOT_CONFIGURED", "Billing is not enabled on this platform.");
+  }
+
   if (!isStripeEnabled()) {
     throw new ApiError(
       "NOT_CONFIGURED",

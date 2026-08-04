@@ -5,6 +5,7 @@ import { ApiError, clientIp, handler, ok, parseBody } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth/session";
 import { serialiseLead } from "@/lib/leads-serialise";
+import { requireUuidParam } from "@/lib/schemas/engagement";
 import { leadPatchSchema } from "@/lib/schemas/leads";
 
 export const runtime = "nodejs";
@@ -28,7 +29,8 @@ interface Ctx {
  */
 export const PATCH = handler(async (req: Request, ctx: Ctx) => {
   const admin = await requireAdmin();
-  const { id } = await ctx.params;
+  const { id: rawId } = await ctx.params;
+  const id = requireUuidParam(rawId, "lead");
   const body = await parseBody(req, leadPatchSchema);
 
   const existing = await db.query.leads.findFirst({ where: eq(leads.id, id) });
