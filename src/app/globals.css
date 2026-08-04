@@ -1,26 +1,263 @@
 @import "tailwindcss";
 
+@theme {
+  /* ===== Ventriloc design system =====
+     Editorial data observatory on warm paper. 95% achromatic; a single
+     orange ember punctuates the monochrome. No shadows — depth comes
+     from surface contrast. See DESIGN.md. */
+
+  /* --- Named palette (source of truth) --- */
+  --color-graphite: #202020;
+  --color-canvas-white: #ffffff;
+  --color-ash: #efefef;
+  --color-fog: #f5f5f5;
+  --color-ivory: #ebe6dd;
+  --color-steel: #4d4d4d;
+  --color-slate: #828282;
+  --color-mist: #e8e8e8;
+  --color-ember-orange: #ff682c;
+  --color-brass: #816729;
+
+  /* --- Semantic aliases used by components --- */
+  /* Primary action = dark filled graphite. Ember is NEVER a CTA fill. */
+  --color-primary: #202020;
+  --color-primary-strong: #000000;
+  --color-primary-soft: #efefef;
+  --color-on-primary: #ffffff;
+
+  /* Progress & streak — the Ember accent, rationed */
+  --color-streak: #c2410c;
+  --color-streak-bright: #ff682c;
+  --color-streak-soft: #ffe8de;
+
+  /* Functional feedback only. Muted so they never read as brand colour. */
+  --color-success: #3f6212;
+  --color-success-soft: #f0f4e8;
+  --color-danger: #9f1239;
+  --color-danger-soft: #fbeaee;
+
+  /* Category accents — warm/monochrome family, no blues or greens */
+  --color-pop-sky: #816729;
+  --color-pop-violet: #4d4d4d;
+  --color-pop-coral: #c2410c;
+  --color-pop-pink: #202020;
+
+  /* Surfaces & ink */
+  --color-surface: #ffffff; /* Canvas White — cards */
+  --color-canvas: #efefef; /* Ash — page background */
+  --color-band: #efefef; /* Ash — alternating section bands */
+  --color-ink: #202020; /* Graphite */
+  --color-ink-muted: #4d4d4d; /* Steel */
+  --color-ink-faint: #828282; /* Slate */
+  --color-line: #e8e8e8; /* Mist */
+  --color-line-strong: #d8d8d8;
+
+  /* No elevation anywhere — surface contrast does the lifting. */
+  --shadow-2xs: 0 0 0 0 transparent;
+  --shadow-xs: 0 0 0 0 transparent;
+  --shadow-sm: 0 0 0 0 transparent;
+  --shadow-md: 0 0 0 0 transparent;
+  --shadow-lg: 0 0 0 0 transparent;
+  --shadow-xl: 0 0 0 0 transparent;
+  --shadow-2xl: 0 0 0 0 transparent;
+
+  /* Typography — Inter Tight substitutes for PolySans (weight 400 only) */
+  --font-display: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Type scale */
+  --text-caption: 14px;
+  --text-subheading: 18px;
+  --text-heading: 32px;
+  --text-heading-lg: 40px;
+  --text-display: 66px;
+
+  /* Three-radius system: sharp buttons, 8px cards, fully round pills */
+  --radius-card: 8px;
+  --radius-field: 0px;
+  --radius-sm: 3px;
+  --radius-md: 0px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 20px;
+  --radius-full: 200px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ===== Admin theme (RoniDoc parity) =====
+   The admin panel is a staff tool, not part of the learner brand, so it wears
+   RoniDoc's palette: cool blue-grey page, pure white cards, indigo accent.
+   RoniDoc makes the same separation by shipping its panel as its own app.
+
+   Every admin component already styles itself with the semantic tokens
+   (bg-surface, text-ink, border-line, ...), so redefining those variables on
+   this one wrapper re-skins the whole section - fourteen feature components
+   included - without touching their markup.
+
+   Values are RoniDoc's, converted from its globals.css HSL. */
+.admin-theme {
+  --color-canvas: hsl(214 32% 96.5%); /* page - cool blue-grey */
+  --color-band: hsl(214 30% 93%); /* muted blocks, table headers */
+  --color-surface: #ffffff; /* cards stay pure white so they lift */
+
+  --color-ink: hsl(222.2 84% 4.9%);
+  --color-ink-muted: hsl(215.4 16.3% 46.9%);
+  --color-ink-faint: hsl(215.4 16.3% 56%);
+  --color-line: hsl(214 25% 88%);
+  --color-line-strong: hsl(214 25% 80%);
+
+  /* Indigo replaces graphite as the action colour. */
+  --color-primary: hsl(243 75% 59%);
+  --color-primary-strong: hsl(243 75% 50%);
+  --color-primary-soft: hsl(243 75% 96%);
+  --color-on-primary: hsl(210 40% 98%);
+
+  --color-success: hsl(142 71% 30%);
+  --color-success-soft: hsl(142 60% 95%);
+  --color-danger: hsl(0 84.2% 45%);
+  --color-danger-soft: hsl(0 84% 96%);
+
+  /* shadcn's 0.5rem, against Acadu's 8px/0px split. */
+  --radius-card: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  /* Acadu zeroes elevation by design; shadcn cards need it back. */
+  --shadow-2xs: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+  --shadow-xs: 0 1px 2px 0 rgb(16 24 40 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(16 24 40 / 0.08), 0 1px 2px -1px rgb(16 24 40 / 0.06);
+  --shadow-md: 0 4px 6px -1px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.06);
+  --shadow-lg: 0 10px 15px -3px rgb(16 24 40 / 0.08), 0 4px 6px -4px rgb(16 24 40 / 0.05);
+
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* The learner site sets headings in the display face at weight 400. An admin
+   tool wants labels that read as UI, not as editorial. */
+.admin-theme h1,
+.admin-theme h2,
+.admin-theme h3,
+.admin-theme h4 {
+  font-family: var(--font-sans);
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+}
+
+.admin-theme ::selection {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Headings are the signature: display face at weight 400 with -0.02em
+   tracking. Never bolded — the whisper weight is the whole point, so this
+   overrides any utility weight classes left on heading elements. */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 400 !important;
+  letter-spacing: -0.02em;
+  line-height: 1.19;
+}
+
+h3, h4 {
+  line-height: 1.25;
+}
+
+/* Visible keyboard focus everywhere (spec §3.3 quality floor) */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+}
+
+button:not(:disabled), [role="button"] {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--color-ember-orange);
+  color: #ffffff;
+}
+
+/* Page container — 1200px per the design system. */
+.page-container {
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* Buttons and nav items use the display face at weight 400 with tight
+   leading, which is what makes labels feel precise rather than shouty. */
+button,
+[role="button"],
+a[class*="bg-primary"],
+a[class*="border-line"] {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Signature asymmetric card: soft top-left, sharp everywhere else. */
+.card-asym {
+  border-radius: 6px 0 0 0;
+}
+
+/* Inline link carrying the one accent colour, per the design system. */
+.link-ember {
+  text-decoration: underline;
+  text-decoration-color: var(--color-ember-orange);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* Cards in a grid row all match the tallest sibling. Grid already stretches
+   items; these make the wrappers inside each cell fill that stretched height. */
+.grid > li,
+.grid > article,
+.grid > div {
+  min-width: 0;
+}
+.grid > li > a,
+.grid > li > article,
+.grid > li > div {
+  height: 100%;
+}
+
+/* Hide scrollbars on horizontal card rails while keeping scrollability */
+.rail {
+  scrollbar-width: none;
+}
+.rail::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

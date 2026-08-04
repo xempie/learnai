@@ -1,3 +1,14 @@
+# pnpm 10 will not run a dependency's build script unless it is listed here,
+# and `--frozen-lockfile` turns any unlisted-and-skipped script into a hard
+# error - which is what broke the container build.
+#
+# esbuild is approved because tsx runs on it, and tsx is the container
+# entrypoint (scripts/start.ts).
+onlyBuiltDependencies:
+  - esbuild
+
+# Neither is needed: next/image runs with `unoptimized: true`, and
+# unrs-resolver only backs eslint, which does not run in the image.
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver

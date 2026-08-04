@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.audit
+.env
+.env.local
+.env*.local
+public/uploads
+*.log
+DEPLOYMENT.md
+README.md
+src/db/migrations-stale-pre-rename
