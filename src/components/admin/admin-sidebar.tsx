@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FileText,
   GraduationCap,
+  Inbox,
   LayoutDashboard,
   LogOut,
   PanelLeftClose,
@@ -61,7 +62,10 @@ const GROUPS: NavGroup[] = [
   },
   {
     label: "Growth",
-    items: [{ href: "/admin/coupons", label: "Coupons", icon: Ticket }],
+    items: [
+      { href: "/admin/leads", label: "Leads", icon: Inbox },
+      { href: "/admin/coupons", label: "Coupons", icon: Ticket },
+    ],
   },
 ];
 
