@@ -66,8 +66,8 @@ export const POST = handler(async (req: Request) => {
       metadata: { app_user_id: user.id },
     },
     ...(discounts ? { discounts } : { allow_promotion_codes: true }),
-    success_url: `${config.appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${config.appUrl}/billing?checkout=cancelled`,
+    success_url: `${config.appUrl}/settings?checkout=success#subscription`,
+    cancel_url: `${config.appUrl}/settings?checkout=cancelled#subscription`,
   });
 
   if (!session.url) {

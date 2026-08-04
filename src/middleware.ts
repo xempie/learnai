@@ -15,7 +15,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const SESSION_COOKIE = "acadu_session";
 
 /** Signed-in-only page prefixes. */
-const PROTECTED = ["/feed", "/me", "/org", "/settings", "/notifications", "/admin", "/dashboard", "/catalogue"];
+const PROTECTED = ["/feed", "/me", "/org", "/settings", "/notifications", "/admin"];
 
 /** Pages that make no sense once you are already signed in. */
 const AUTH_PAGES = ["/login", "/signup"];

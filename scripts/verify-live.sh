@@ -77,10 +77,10 @@ for path in /login /signup; do
   check "GET $path" "$([ "$code" = "200" ] && echo 1 || echo 0)" "HTTP $code"
 done
 
-# /catalogue is behind auth, so a 307 to /login is the correct answer for a
+# /feed is behind auth, so a 307 to /login is the correct answer for a
 # signed-out request - only a 404 or 5xx would mean the deploy is wrong.
-code=$(status "$BASE/catalogue" "$WORK/page.html")
-check "GET /catalogue (200 or auth redirect)" \
+code=$(status "$BASE/feed" "$WORK/page.html")
+check "GET /feed (200 or auth redirect)" \
   "$([ "$code" = "200" ] || [ "$code" = "307" ] || [ "$code" = "302" ] && echo 1 || echo 0)" "HTTP $code"
 
 # --- a write route is reachable (the static bundle allowed GET only) --------
