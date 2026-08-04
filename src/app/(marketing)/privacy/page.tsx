@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LegalPage } from "@/components/legal-page";
 import { BRAND } from "@/lib/brand";
 
@@ -156,9 +157,9 @@ export default function PrivacyPage() {
 
       <h2 className={H2}>Contact</h2>
       <p className={P}>
-        Privacy questions and requests: [privacy contact to be confirmed]. Postal address: [company
-        address to be confirmed]. These placeholders will be replaced with real details before the
-        service is offered publicly.
+        For privacy questions and requests, please use the enquiry form at{" "}
+        <Link href="/enquiry">acadu.ai/enquiry</Link>. A registered postal address will be provided
+        before the service is offered publicly.
       </p>
     </LegalPage>
   );

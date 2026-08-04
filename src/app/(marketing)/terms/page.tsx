@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LegalPage } from "@/components/legal-page";
 import { BRAND } from "@/lib/brand";
 
@@ -132,9 +133,9 @@ export default function TermsPage() {
 
       <h2 className={H2}>Governing law and contact</h2>
       <p className={P}>
-        These terms are governed by the laws of South Australia, Australia. Questions about them:
-        [legal contact to be confirmed] - a real address will replace this placeholder before the
-        service is offered publicly.
+        These terms are governed by the laws of South Australia, Australia. For questions about
+        them, please use the enquiry form at{" "}
+        <Link href="/enquiry">acadu.ai/enquiry</Link>.
       </p>
     </LegalPage>
   );
