@@ -77,6 +77,10 @@ export const config = {
     notifyEmail: str("LEAD_NOTIFY_EMAIL", "afhayati@gmail.com"),
   },
 
+  drafts: {
+    ingestToken: str("DRAFT_INGEST_TOKEN"),
+  },
+
   flags: {
     comments: bool("FEATURE_COMMENTS", true),
     search: bool("FEATURE_SEARCH", false),
