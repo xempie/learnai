@@ -965,6 +965,52 @@ export const processedWebhookEvents = pgTable("processed_webhook_events", {
 });
 
 /* ============================================================
+   SERVICES FUNNEL  (SERVICES_ACTION_PLAN — leads & enquiries)
+   ============================================================ */
+
+/**
+ * A service enquiry. The metric that decides everything is qualified
+ * conversations per month originating from the platform — that is
+ * count(*) where qualified_at is in the month.
+ */
+export const leads = pgTable(
+  "leads",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    /** lowercase registrable domain; null for consumer mailboxes */
+    orgDomain: text("org_domain"),
+    orgName: text("org_name"),
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "set null" }),
+    serviceInterest: text("service_interest").notNull(),
+    teamSize: integer("team_size"),
+    message: text("message"),
+    /** Routed out of the hourly funnel (SERVICES_ACTION_PLAN §3). */
+    isTeam: boolean("is_team").notNull().default(false),
+    source: text("source").notNull().default("platform"),
+    status: text("status").notNull().default("new"),
+    notes: text("notes"),
+    /** Set once, the first time status reaches 'qualified'. */
+    qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check(
+      "leads_service",
+      sql`${t.serviceInterest} in ('workshop','advisory','pilot_sprint','training','team_platform','other')`,
+    ),
+    check(
+      "leads_status",
+      sql`${t.status} in ('new','contacted','qualified','converted','closed')`,
+    ),
+    index("leads_status_idx").on(t.status, t.createdAt),
+    index("leads_qualified_idx").on(t.qualifiedAt),
+  ],
+);
+
+/* ============================================================
    CONTENT PIPELINE  (human review gate - TECHNICAL_SPEC §8.5)
    ============================================================ */
 
