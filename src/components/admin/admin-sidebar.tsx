@@ -6,6 +6,7 @@ import { useState, useSyncExternalStore } from "react";
 import { api } from "@/lib/api-client";
 import {
   ChevronsUpDown,
+  ClipboardCheck,
   Cog,
   ExternalLink,
   FileText,
@@ -51,6 +52,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/content", label: "Topics", icon: FileText },
       { href: "/admin/categories", label: "Categories", icon: Tags },
+      { href: "/admin/drafts", label: "Drafts", icon: ClipboardCheck },
     ],
   },
   {
