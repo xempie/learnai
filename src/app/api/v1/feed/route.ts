@@ -19,6 +19,7 @@ import {
   feedQuerySchema,
   serialiseCard,
 } from "@/lib/schemas/engagement";
+import { promoteDueScheduledTopics } from "@/lib/topics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -135,6 +136,9 @@ export const GET = handler(async (req: Request) => {
   if (q.tab === "for_you" && !user) {
     throw new ApiError("UNAUTHENTICATED", "Sign in to see your feed.");
   }
+
+  // No cron in this deployment - scheduled topics flip on catalogue reads.
+  await promoteDueScheduledTopics();
 
   const viewerId = user?.id ?? NO_USER;
   const cursor = decodeCursor<TimeCursor>(q.cursor ?? null);

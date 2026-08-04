@@ -7,7 +7,7 @@ import { and, desc, eq, ilike, inArray, isNotNull, isNull, lt, or, sql } from "d
 import { db } from "@/db";
 import { categories, topicCategories, topics, users } from "@/db/schema";
 import { type Page, decodeCursor, encodeCursor, handler, ok, parseQuery } from "@/lib/api";
-import { loadCategoriesByTopic, serialiseTopicCard } from "@/lib/topics";
+import { loadCategoriesByTopic, promoteDueScheduledTopics, serialiseTopicCard } from "@/lib/topics";
 import { freeTopicIds } from "@/lib/entitlements";
 import { topicListQuery } from "@/lib/schemas/content";
 
@@ -20,6 +20,9 @@ interface TopicCursor {
 }
 
 export const GET = handler(async (req: Request) => {
+  // No cron in this deployment - scheduled topics flip on catalogue reads.
+  await promoteDueScheduledTopics();
+
   const q = parseQuery(req, topicListQuery);
   const cursor = decodeCursor<TopicCursor>(q.cursor ?? null);
 

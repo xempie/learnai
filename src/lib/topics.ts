@@ -808,6 +808,23 @@ export function serialiseTopicDetail(
   };
 }
 
+/**
+ * Lazily flip due 'scheduled' topics to 'published'. There is no cron in this
+ * deployment, so the two catalogue read paths call this; the cost is one
+ * indexed UPDATE that usually matches zero rows (topics_scheduled_idx).
+ */
+export async function promoteDueScheduledTopics(): Promise<void> {
+  try {
+    await db
+      .update(topics)
+      .set({ status: "published", publishedAt: sql`coalesce(${topics.publishAt}, now())` })
+      .where(and(eq(topics.status, "scheduled"), sql`${topics.publishAt} <= now()`));
+  } catch (err) {
+    // Promotion must never break a read path.
+    console.error("[topics] scheduled promotion failed", err);
+  }
+}
+
 /** Live published-topic count per category, used by GET /categories. */
 export async function categoryTopicCounts(): Promise<Map<string, number>> {
   const rows = await db
