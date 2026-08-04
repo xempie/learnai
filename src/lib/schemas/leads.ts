@@ -18,3 +18,20 @@ export const leadPatchSchema = z
   .refine((v) => v.status !== undefined || v.notes !== undefined, {
     message: "Nothing to update.",
   });
+
+/** GET /api/v1/admin/leads - keyset paginated, same shape as topicListQuery. */
+export const adminLeadListQuery = z.object({
+  status: z.enum(["new", "contacted", "qualified", "converted", "closed"]).optional(),
+  limit: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? Number(v) : 20))
+    .pipe(z.number().int().min(1).max(50)),
+  cursor: z
+    .string()
+    .trim()
+    .max(512)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+});
