@@ -76,6 +76,12 @@ export const config = {
     comments: bool("FEATURE_COMMENTS", true),
     search: bool("FEATURE_SEARCH", false),
     share: bool("FEATURE_SHARE", true),
+    /**
+     * SERVICES_ACTION_PLAN §1: the platform is a funnel, not a revenue line.
+     * When true every verified account gets full access and billing UI is hidden.
+     */
+    freePlatform: bool("FEATURE_FREE_PLATFORM", true),
+    billing: bool("FEATURE_BILLING", false),
   },
 
   limits: {

@@ -25,7 +25,7 @@ export type AccessTier = "full" | "trial" | "free";
 export interface Entitlements {
   tier: AccessTier;
   /** Why they have the access they have - drives the upgrade copy. */
-  reason: "staff" | "org_license" | "active_subscription" | "trial" | "free_tier";
+  reason: "staff" | "org_license" | "active_subscription" | "trial" | "free_tier" | "free_platform";
   unlimitedVideos: boolean;
   certificates: boolean;
   leaderboards: boolean;
@@ -49,6 +49,11 @@ export async function getEntitlements(userId: string): Promise<Entitlements> {
   // they are locked out of. This is a job requirement, not a perk.
   if (user.role === "platform_admin" || user.role === "content_reviewer") {
     return fullTier("staff", user.trialEndsAt, purchased);
+  }
+
+  // SERVICES_ACTION_PLAN §1: the free platform is the funnel; services are revenue.
+  if (config.flags.freePlatform) {
+    return fullTier("free_platform", user.trialEndsAt, purchased);
   }
 
   // 1. Organisation licence.
