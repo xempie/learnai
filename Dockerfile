@@ -43,6 +43,10 @@ COPY . .
 # module-level check in src/db/index.ts.
 ENV DATABASE_URL="postgres://build:build@127.0.0.1:5432/build"
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* values are inlined into the client bundle at build time - they
+# cannot be supplied by App Runner at runtime. The platform is free (services
+# are the revenue line), so the billing UI must compile out here.
+ENV NEXT_PUBLIC_FREE_PLATFORM=true
 RUN pnpm build
 
 # --- runtime ----------------------------------------------------------------
