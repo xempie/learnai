@@ -40,7 +40,7 @@ export const cursorParam = z.string().min(1).max(512).optional();
    ============================================================ */
 
 export const feedQuerySchema = z.object({
-  tab: z.enum(["for_you", "everything"]).catch("for_you"),
+  tab: z.enum(["for_you", "everything", "updates"]).catch("for_you"),
   type: z.enum(["topic", "article"]).catch("topic"),
   /** Category slug or id. */
   category: z.string().trim().min(1).max(128).optional(),

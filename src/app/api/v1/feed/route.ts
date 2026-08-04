@@ -32,6 +32,8 @@ export const dynamic = "force-dynamic";
  *
  * `for_you`  - published items in the caller's three chosen categories.
  * `everything` - unfiltered.
+ * `updates` - articles only (`topics.type = "article"`); no category filter,
+ *   no personalisation, no backfill.
  *
  * When `for_you` is thin (a new category, a quiet week) the first page tops up
  * from everything-else and returns those in a SEPARATE `backfill` array so the
@@ -138,7 +140,11 @@ export const GET = handler(async (req: Request) => {
   const cursor = decodeCursor<TimeCursor>(q.cursor ?? null);
   const extra: SQL[] = [];
 
-  if (q.category) {
+  // `updates` is articles-only and ignores category filters - it isn't a
+  // narrowed view of the personalised/everything feeds, it's a separate stream.
+  const type = q.tab === "updates" ? "article" : q.type;
+
+  if (q.tab !== "updates" && q.category) {
     extra.push(inArray(topics.id, topicsInCategory(await resolveCategoryId(q.category))));
   }
 
@@ -152,7 +158,7 @@ export const GET = handler(async (req: Request) => {
 
   const items = await fetchPage({
     viewerId,
-    type: q.type,
+    type,
     limit: q.limit,
     cursor,
     extra,
@@ -173,7 +179,7 @@ export const GET = handler(async (req: Request) => {
     }
     backfill = await fetchPage({
       viewerId,
-      type: q.type,
+      type,
       limit: want,
       cursor: null,
       extra: exclude,
@@ -182,7 +188,7 @@ export const GET = handler(async (req: Request) => {
 
   return ok({
     tab: q.tab,
-    type: q.type,
+    type,
     data: items.map(serialiseCard),
     next_cursor: items.length === q.limit ? cursorFor(items) : null,
     /** Kept separate from `data` on purpose - see the note at the top. */

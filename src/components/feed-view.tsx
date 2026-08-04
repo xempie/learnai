@@ -7,11 +7,12 @@ import { ContentCard, ContentCardSkeleton } from "@/components/content-card";
 import { ApiClientError, api, trackEvent } from "@/lib/api-client";
 
 /** Matches the `tab` enum on GET /api/v1/feed. */
-type Tab = "for_you" | "everything";
+type Tab = "for_you" | "everything" | "updates";
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "for_you", label: "For you" },
   { value: "everything", label: "Everything" },
+  { value: "updates", label: "Updates" },
 ];
 
 const PAGE_SIZE = 6;
@@ -251,54 +252,59 @@ export function FeedView() {
       </div>
 
       {/* ===== Category filter chips ===== */}
-      <div>
-        <h2 id="filter-heading" className="sr-only">
-          Filter by category
-        </h2>
-        <ul aria-labelledby="filter-heading" className="flex flex-wrap gap-2">
-          <li>
-            <button
-              type="button"
-              onClick={() => changeCategory(ALL)}
-              aria-pressed={categorySlug === ALL}
-              className={`min-h-11 rounded-full border px-4 text-sm font-semibold transition-colors ${
-                categorySlug === ALL
-                  ? "border-transparent bg-primary text-on-primary"
-                  : "border-line bg-surface text-ink-muted hover:border-primary hover:text-primary-strong"
-              }`}
-            >
-              All
-            </button>
-          </li>
-          {categories.map((category) => {
-            const selected = categorySlug === category.slug;
-            return (
-              <li key={category.id}>
-                <button
-                  type="button"
-                  onClick={() => changeCategory(category.slug, category.id)}
-                  aria-pressed={selected}
-                  className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors ${
-                    selected
-                      ? "border-transparent bg-primary text-on-primary"
-                      : "border-line bg-surface text-ink-muted hover:border-primary hover:text-primary-strong"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="size-2 rounded-full"
-                    style={{ background: selected ? "currentColor" : category.color_hex }}
-                  />
-                  {category.name}
-                  {myCategoryIds.includes(category.id) && (
-                    <span className="sr-only">(one of your chosen categories)</span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      {/* Articles in the Updates tab aren't category-filtered, so the chips
+          would be a no-op there - hide them rather than show a control that
+          silently does nothing. */}
+      {tab !== "updates" && (
+        <div>
+          <h2 id="filter-heading" className="sr-only">
+            Filter by category
+          </h2>
+          <ul aria-labelledby="filter-heading" className="flex flex-wrap gap-2">
+            <li>
+              <button
+                type="button"
+                onClick={() => changeCategory(ALL)}
+                aria-pressed={categorySlug === ALL}
+                className={`min-h-11 rounded-full border px-4 text-sm font-semibold transition-colors ${
+                  categorySlug === ALL
+                    ? "border-transparent bg-primary text-on-primary"
+                    : "border-line bg-surface text-ink-muted hover:border-primary hover:text-primary-strong"
+                }`}
+              >
+                All
+              </button>
+            </li>
+            {categories.map((category) => {
+              const selected = categorySlug === category.slug;
+              return (
+                <li key={category.id}>
+                  <button
+                    type="button"
+                    onClick={() => changeCategory(category.slug, category.id)}
+                    aria-pressed={selected}
+                    className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors ${
+                      selected
+                        ? "border-transparent bg-primary text-on-primary"
+                        : "border-line bg-surface text-ink-muted hover:border-primary hover:text-primary-strong"
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="size-2 rounded-full"
+                      style={{ background: selected ? "currentColor" : category.color_hex }}
+                    />
+                    {category.name}
+                    {myCategoryIds.includes(category.id) && (
+                      <span className="sr-only">(one of your chosen categories)</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <p role="status" aria-live="polite" className="sr-only">
         {loading
