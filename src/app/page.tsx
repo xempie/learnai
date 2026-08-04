@@ -113,7 +113,7 @@ export default function LandingPage() {
                 <Play className="size-5 fill-current" aria-hidden="true" />
                 Start free
               </Link>
-              <p className="text-sm font-medium text-ink-faint">3 episodes free · no card</p>
+              <p className="text-sm font-medium text-ink-faint">Free · no card needed</p>
             </div>
           </div>
 
@@ -249,67 +249,77 @@ export default function LandingPage() {
           </ul>
         </section>
 
-        {/* ===== Pricing ===== */}
-        <section aria-labelledby="pricing-heading" className="border-t border-line bg-band">
+        {/* ===== Services ===== */}
+        <section aria-labelledby="services-heading" className="border-t border-line bg-band">
           <div className="mx-auto page-container px-4 py-12 sm:px-6 sm:py-16">
-            <h2 id="pricing-heading" className="text-center text-2xl sm:text-3xl">
-              Simple pricing
+            <h2 id="services-heading" className="text-center text-2xl sm:text-3xl">
+              Work with the people behind the platform
             </h2>
-            <div className="mx-auto mt-10 grid max-w-4xl gap-6 md:grid-cols-3">
-              {/* Free */}
+            <div className="mx-auto mt-10 grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Corporate workshops */}
               <div className="flex flex-col rounded-card border border-line bg-surface p-6 shadow-xs">
-                <h3 className="font-display text-lg font-semibold">Free</h3>
-                <p className="mt-2 font-display text-3xl font-semibold">$0</p>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-ink-muted">
-                  <li>First 3 videos + quizzes</li>
-                  <li>Streaks from day one</li>
-                  <li>See your organisation&rsquo;s leaderboard</li>
-                </ul>
-                <Link
-                  href="/signup"
-                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-md border border-line font-semibold hover:border-primary hover:text-primary-strong"
-                >
-                  Start free
-                </Link>
-              </div>
-              {/* Individual */}
-              <div className="relative flex flex-col rounded-card border-2 border-primary bg-surface p-6 shadow-md">
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-bold text-on-primary">
-                  Most popular
-                </span>
-                <h3 className="font-display text-lg font-semibold">Individual</h3>
-                <p className="mt-2 font-display text-3xl font-semibold">
-                  $9<span className="text-base font-semibold text-ink-faint">/month</span>
+                <h3 className="font-display text-lg font-semibold">Corporate workshops</h3>
+                <p className="mt-4 flex-1 text-sm text-ink-muted">
+                  AI literacy, responsible AI and digital transformation for your whole team.
                 </p>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-ink-muted">
-                  <li>Everything, unlimited</li>
-                  <li>7-day free trial - no card</li>
-                  <li>Certificates (coming soon)</li>
-                  <li>Cancel anytime</li>
-                </ul>
+                <p className="mt-4 font-display text-2xl font-semibold">$12&ndash;25k</p>
                 <Link
-                  href="/signup"
-                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-md bg-primary font-semibold text-on-primary hover:bg-primary-strong"
-                >
-                  Start 7-day trial
-                </Link>
-              </div>
-              {/* Teams */}
-              <div className="flex flex-col rounded-card border border-line bg-surface p-6 shadow-xs">
-                <h3 className="font-display text-lg font-semibold">Teams & Campus</h3>
-                <p className="mt-2 font-display text-3xl font-semibold">Custom</p>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-ink-muted">
-                  <li>Per-seat licences</li>
-                  <li>Aggregate progress reporting</li>
-                  <li>Priority topics for your industry</li>
-                </ul>
-                <Link
-                  href="/signup"
+                  href="/services/workshops"
                   className="mt-6 inline-flex min-h-12 items-center justify-center rounded-md border border-line font-semibold hover:border-primary hover:text-primary-strong"
                 >
-                  Talk to us
+                  Learn more
                 </Link>
               </div>
+              {/* AI advisory */}
+              <div className="flex flex-col rounded-card border border-line bg-surface p-6 shadow-xs">
+                <h3 className="font-display text-lg font-semibold">AI advisory</h3>
+                <p className="mt-4 flex-1 text-sm text-ink-muted">
+                  Strategy and hard decisions with two AI PhDs, without hiring a team.
+                </p>
+                <p className="mt-4 font-display text-2xl font-semibold">$20&ndash;60k</p>
+                <Link
+                  href="/services/advisory"
+                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-md border border-line font-semibold hover:border-primary hover:text-primary-strong"
+                >
+                  Learn more
+                </Link>
+              </div>
+              {/* AI Pilot Sprint */}
+              <div className="flex flex-col rounded-card border border-line bg-surface p-6 shadow-xs">
+                <h3 className="font-display text-lg font-semibold">AI Pilot Sprint</h3>
+                <p className="mt-4 flex-1 text-sm text-ink-muted">
+                  A fixed-scope working pilot in 2&ndash;4 weeks.
+                </p>
+                <p className="mt-4 font-display text-2xl font-semibold">$25&ndash;40k</p>
+                <Link
+                  href="/services/pilot-sprint"
+                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-md border border-line font-semibold hover:border-primary hover:text-primary-strong"
+                >
+                  Learn more
+                </Link>
+              </div>
+              {/* 1:1 training */}
+              <div className="flex flex-col rounded-card border border-line bg-surface p-6 shadow-xs">
+                <h3 className="font-display text-lg font-semibold">1:1 training</h3>
+                <p className="mt-4 flex-1 text-sm text-ink-muted">
+                  Personal AI and software development coaching, basic to advanced tracks.
+                </p>
+                <p className="mt-4 font-display text-2xl font-semibold">from $90/hr</p>
+                <Link
+                  href="/services/training"
+                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-md border border-line font-semibold hover:border-primary hover:text-primary-strong"
+                >
+                  Learn more
+                </Link>
+              </div>
+            </div>
+            <div className="mt-10 text-center">
+              <Link
+                href="/enquiry?service=team_platform"
+                className="inline-flex min-h-12 items-center justify-center rounded-md bg-primary px-7 font-semibold text-on-primary transition-colors hover:bg-primary-strong"
+              >
+                Talk to us about your team
+              </Link>
             </div>
           </div>
         </section>
@@ -337,7 +347,22 @@ export default function LandingPage() {
             <GraduationCap className="size-4 text-primary-strong" aria-hidden="true" />
             {BRAND.name} · {BRAND.domain}
           </p>
-          <nav aria-label="Footer" className="flex gap-5">
+          <nav aria-label="Footer" className="flex flex-wrap justify-center gap-5">
+            <Link href="/services/workshops" className="hover:text-ink">
+              Workshops
+            </Link>
+            <Link href="/services/advisory" className="hover:text-ink">
+              Advisory
+            </Link>
+            <Link href="/services/pilot-sprint" className="hover:text-ink">
+              Pilot Sprint
+            </Link>
+            <Link href="/services/training" className="hover:text-ink">
+              1:1 training
+            </Link>
+            <Link href="/enquiry" className="hover:text-ink">
+              Enquire
+            </Link>
             <Link href="/privacy" className="hover:text-ink">
               Privacy
             </Link>
