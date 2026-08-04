@@ -236,6 +236,22 @@ The old static S3 bundle is still in `learnai-data-corner` and `deploy.ps1`
 still builds it, but `next.config.ts` no longer sets `output: "export"`, so
 that path only works by reverting the config first.
 
+Two deploy gotchas observed in practice:
+
+- **Windows PowerShell 5.1 corrupts the ECR login pipe.** `aws ecr
+  get-login-password | docker login --password-stdin ...` fails with
+  `400 Bad Request` (and the script continues to a doomed `403` push, because
+  the login's exit code isn't checked). Run that one login command from Git
+  Bash instead, then `./deploy.ps1 -SkipBuild` after pushing manually — or run
+  the whole script from pwsh 7+.
+- **`NEXT_PUBLIC_*` values are baked into the client bundle at `docker build`
+  time** (`NEXT_PUBLIC_FREE_PLATFORM`, `NEXT_PUBLIC_CALCOM_HANDLE`, ...).
+  Setting them in App Runner's env at runtime does nothing for client code —
+  changing one requires a rebuild and redeploy. Keep the runtime
+  `FEATURE_FREE_PLATFORM` and build-time `NEXT_PUBLIC_FREE_PLATFORM` in
+  agreement, or the server will paywall content while the client has no
+  billing UI to escape it.
+
 ---
 
 ## Pre-launch checklist
