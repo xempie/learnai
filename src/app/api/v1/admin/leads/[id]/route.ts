@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { ApiError, clientIp, handler, ok, parseBody } from "@/lib/api";
@@ -18,8 +18,13 @@ interface Ctx {
  * PATCH /api/v1/admin/leads/[id]
  *
  * Status and/or notes only. The first transition to 'qualified' stamps
- * qualified_at once; later status changes never move it (first-stamp-wins),
- * so it stays a reliable "date this lead first qualified" for the metrics route.
+ * qualified_at once; later status changes never move it (first-stamp-wins).
+ * The stamp is set with a SQL-side `coalesce(qualified_at, now())` rather
+ * than a JS-side `existing.qualifiedAt ? {} : { qualifiedAt: new Date() }`
+ * conditional, so it stays correct under two near-simultaneous PATCHes to
+ * 'qualified': whichever UPDATE commits first wins the timestamp, and the
+ * second sees a non-null qualified_at already there and coalesces to it
+ * instead of racing past it with its own now().
  */
 export const PATCH = handler(async (req: Request, ctx: Ctx) => {
   const admin = await requireAdmin();
@@ -34,8 +39,8 @@ export const PATCH = handler(async (req: Request, ctx: Ctx) => {
     .set({
       ...(body.status ? { status: body.status } : {}),
       ...(body.notes !== undefined ? { notes: body.notes } : {}),
-      ...(body.status === "qualified" && !existing.qualifiedAt
-        ? { qualifiedAt: new Date() }
+      ...(body.status === "qualified"
+        ? { qualifiedAt: sql`coalesce(${leads.qualifiedAt}, now())` }
         : {}),
       updatedAt: new Date(),
     })
