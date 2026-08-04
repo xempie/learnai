@@ -6,9 +6,9 @@
  * published - that is the accessibility promise, not a nice-to-have.
  */
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { topics } from "@/db/schema";
+import { contentDrafts, topics } from "@/db/schema";
 import { clientIp, handler, ok, parseBody } from "@/lib/api";
 import { requireAdmin } from "@/lib/auth/session";
 import { audit } from "@/lib/audit";
@@ -47,6 +47,21 @@ export const POST = handler(
       )
       .where(eq(topics.id, topic.id))
       .returning();
+
+    // If this topic started life as a promoted draft (TASK 6.2), the draft's
+    // own status tracks it one-way: pending_review -> approved -> published,
+    // never back. Only an actual publish stamps it - `scheduled` deliberately
+    // does NOT, so the drafts queue's Published tab only lists content that is
+    // actually live, not merely queued. There is currently no un-publish path
+    // that reverses this (unpublishing a topic leaves the source draft marked
+    // published), and the lazy-promotion pass (task 7.2) does not touch drafts
+    // either - both are accepted, known limits rather than oversights.
+    if (!scheduled) {
+      await db
+        .update(contentDrafts)
+        .set({ status: "published", updatedAt: now })
+        .where(and(eq(contentDrafts.targetTopicId, topic.id), eq(contentDrafts.status, "approved")));
+    }
 
     await audit({
       actorId: admin.id,
