@@ -19,6 +19,7 @@ import {
   BrowseTopics,
   DiscoverySections,
   HowItWorks,
+  LatestUpdates,
 } from "@/components/marketing-sections";
 import { BRAND } from "@/lib/brand";
 
@@ -211,6 +212,9 @@ export default function LandingPage() {
 
         {/* ===== Discovery: trending, newest, free starters ===== */}
         <DiscoverySections />
+
+        {/* ===== Latest in AI: short article updates ===== */}
+        <LatestUpdates />
 
         {/* ===== Browse by topic ===== */}
         <BrowseTopics />

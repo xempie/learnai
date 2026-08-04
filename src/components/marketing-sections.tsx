@@ -4,6 +4,7 @@ import {
   CircleCheck,
   Flame,
   MonitorPlay,
+  Newspaper,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -11,6 +12,7 @@ import { ContentCard } from "@/components/content-card";
 import {
   type PublicTopicCard,
   freeStarterTopics,
+  latestUpdates,
   newestTopics,
   publicCategories,
   trendingTopics,
@@ -110,6 +112,26 @@ function ContentRail({
         ))}
       </ul>
     </section>
+  );
+}
+
+/* ---------- Latest in AI (articles) ---------- */
+
+export async function LatestUpdates() {
+  const updates = await latestUpdates(4);
+  if (updates.length === 0) return null;
+
+  return (
+    <div className="mx-auto page-container px-4 py-12 sm:px-6 sm:py-14">
+      <ContentRail
+        id="latest-updates"
+        eyebrow="Just published"
+        icon={Newspaper}
+        title="Latest in AI"
+        description="Short, human-reviewed updates — what changed and why it matters."
+        items={updates}
+      />
+    </div>
   );
 }
 

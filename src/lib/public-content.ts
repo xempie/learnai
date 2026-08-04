@@ -145,6 +145,24 @@ export async function newestTopics(limit = 4): Promise<PublicTopicCard[]> {
   return withCategories(rows);
 }
 
+/** Most recently published articles. */
+export async function latestUpdates(limit = 4): Promise<PublicTopicCard[]> {
+  const rows = await db
+    .select(cardColumns)
+    .from(topics)
+    .leftJoin(users, eq(users.id, topics.authorId))
+    .where(
+      and(
+        eq(topics.status, "published"),
+        eq(topics.type, "article"),
+        isNull(topics.deletedAt),
+      ),
+    )
+    .orderBy(desc(topics.publishedAt))
+    .limit(limit);
+  return withCategories(rows);
+}
+
 /** The permanently-free starter set, in their intended order. */
 export async function freeStarterTopics(limit = 3): Promise<PublicTopicCard[]> {
   const rows = await db
