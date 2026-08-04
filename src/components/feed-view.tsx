@@ -115,7 +115,7 @@ export function FeedView() {
       try {
         const res = await api.get<FeedResponse>("/feed", {
           tab,
-          category: categorySlug === ALL ? undefined : categorySlug,
+          category: tab !== "updates" && categorySlug !== ALL ? categorySlug : undefined,
           limit: PAGE_SIZE,
         });
         if (cancelled) return;
@@ -171,7 +171,7 @@ export function FeedView() {
     try {
       const res = await api.get<FeedResponse>("/feed", {
         tab,
-        category: categorySlug === ALL ? undefined : categorySlug,
+        category: tab !== "updates" && categorySlug !== ALL ? categorySlug : undefined,
         limit: PAGE_SIZE,
         cursor,
       });
@@ -214,7 +214,11 @@ export function FeedView() {
     setReloadKey((k) => k + 1);
   }
 
-  const selectedCategory = categories.find((c) => c.slug === categorySlug);
+  // Category selection is meaningless on Updates (the server ignores it there
+  // too) - fall through to the tab-agnostic copy instead of showing a stale
+  // category name left over from a previous tab.
+  const selectedCategory =
+    tab === "updates" ? undefined : categories.find((c) => c.slug === categorySlug);
   const hasMore = cursor !== null;
   const showBackfill = !hasMore && backfill.length > 0;
 
@@ -351,7 +355,7 @@ export function FeedView() {
               ? `We haven't published anything in ${selectedCategory.name} that matches this view. New episodes land most weekdays.`
               : "There's nothing published in this view yet. New episodes land most weekdays."}
           </p>
-          {categorySlug !== ALL && (
+          {tab !== "updates" && categorySlug !== ALL && (
             <button
               type="button"
               onClick={() => changeCategory(ALL)}
