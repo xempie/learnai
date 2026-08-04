@@ -72,6 +72,11 @@ export const config = {
     configurationSet: str("SES_CONFIGURATION_SET_TRANSACTIONAL"),
   },
 
+  leads: {
+    /** Where new service enquiries are sent. */
+    notifyEmail: str("LEAD_NOTIFY_EMAIL", "afhayati@gmail.com"),
+  },
+
   flags: {
     comments: bool("FEATURE_COMMENTS", true),
     search: bool("FEATURE_SEARCH", false),

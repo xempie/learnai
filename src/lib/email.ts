@@ -126,3 +126,52 @@ export async function sendWelcomeEmail(to: string, nickname: string): Promise<vo
     ),
   });
 }
+
+/** Escapes the minimal set of characters needed to safely interpolate user text into HTML. */
+function esc(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+export interface LeadNotification {
+  name: string;
+  email: string;
+  orgName: string | null;
+  service: string;
+  teamSize: number | null;
+  message: string | null;
+  isTeam: boolean;
+}
+
+/** New-enquiry alert to the founders. */
+export async function sendLeadNotificationEmail(lead: LeadNotification): Promise<void> {
+  const kind = lead.isTeam ? "TEAM enquiry" : "enquiry";
+  const lines = [
+    `Service: ${lead.service}`,
+    `From: ${lead.name} <${lead.email}>`,
+    lead.orgName ? `Organisation: ${lead.orgName}` : null,
+    lead.teamSize ? `Team size: ${lead.teamSize}` : null,
+    lead.message ? `\n${lead.message}` : null,
+    `\nManage: ${config.appUrl}/admin/leads`,
+  ].filter((v): v is string => Boolean(v));
+
+  const htmlLines = [
+    `Service: ${esc(lead.service)}`,
+    `From: ${esc(lead.name)} &lt;${esc(lead.email)}&gt;`,
+    lead.orgName ? `Organisation: ${esc(lead.orgName)}` : null,
+    lead.teamSize ? `Team size: ${lead.teamSize}` : null,
+    lead.message ? `\n${esc(lead.message)}` : null,
+    `\nManage: ${config.appUrl}/admin/leads`,
+  ].filter((v): v is string => Boolean(v));
+
+  await send({
+    to: config.leads.notifyEmail,
+    subject: `New ${kind}: ${lead.service} — ${lead.name}`,
+    text: lines.join("\n"),
+    html: layout(
+      `New ${kind}`,
+      `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4d4d4d">${htmlLines
+        .join("<br>")
+        .replace(/\n/g, "<br>")}</p>`,
+    ),
+  });
+}
