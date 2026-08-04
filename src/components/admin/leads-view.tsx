@@ -183,16 +183,22 @@ export function LeadsView() {
   // (tracked here, since `useAsync`'s `reload()` is fire-and-forget) so the
   // Save button doesn't flip back to idle while the row still shows
   // pre-save data.
-  const notesResyncRef = useRef<{ id: string; started: boolean } | null>(null);
+  //
+  // This does NOT wait for an observed loading:false->true->false transition:
+  // `list.loading` is derived (`!fresh`), so if a status-change-triggered
+  // reload is already in flight when saveNotes() calls list.reload() again,
+  // loading is already true and never re-presents a false->true edge for this
+  // effect to catch. Instead, any effect run where a pending marker exists
+  // and list.loading is currently false clears the busy flag. That's safe
+  // because the marker is only ever set immediately after (or while) a
+  // reload was triggered by *this* save - useAsync cancels stale in-flight
+  // fetches by request key, so the next loading:false necessarily reflects a
+  // fetch requested at or after that reload() call, which is at or after the
+  // notes PATCH resolved.
+  const notesResyncRef = useRef<{ id: string } | null>(null);
 
   useEffect(() => {
-    const pending = notesResyncRef.current;
-    if (!pending) return;
-    if (list.loading) {
-      pending.started = true;
-      return;
-    }
-    if (pending.started) {
+    if (notesResyncRef.current && !list.loading) {
       setNotesBusyId(null);
       notesResyncRef.current = null;
     }
@@ -213,8 +219,13 @@ export function LeadsView() {
       list.reload();
       metrics.reload();
     } catch (err) {
-      list.set(previous);
+      // Not list.set(previous): that snapshot may already be stale by the
+      // time this PATCH fails (e.g. a concurrent notes save resolved first),
+      // and reverting to it would display-revert that unrelated change too.
+      // A reload resyncs to server truth - which, since this PATCH failed,
+      // still shows the original status - without touching anything else.
       setActionError(errorMessage(err));
+      list.reload();
     } finally {
       setStatusBusyId(null);
     }
@@ -225,7 +236,7 @@ export function LeadsView() {
     setActionError("");
     try {
       await api.patch<Lead>(`/admin/leads/${lead.id}`, { notes: notesDrafts[lead.id] ?? "" });
-      notesResyncRef.current = { id: lead.id, started: false };
+      notesResyncRef.current = { id: lead.id };
       list.reload();
     } catch (err) {
       setActionError(errorMessage(err));
