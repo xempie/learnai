@@ -96,17 +96,29 @@ interface ApiTopicDetail {
  * which is resolved from the forwarded session cookie.
  */
 async function fetchTopic(slug: string): Promise<ApiTopicDetail | null> {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  // This request must loop back inside the container: App Runner's egress goes
+  // to the VPC, so fetching our own PUBLIC url (through CloudFront) never
+  // connects and the page 500s. PORT is always set in production (Dockerfile).
+  const base =
+    process.env.INTERNAL_API_ORIGIN ??
+    (process.env.PORT
+      ? `http://127.0.0.1:${process.env.PORT}`
+      : (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"));
   const cookie = (await cookies()).toString();
 
-  const res = await fetch(`${base}/api/v1/topics/${encodeURIComponent(slug)}`, {
-    headers: cookie ? { cookie } : {},
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${base}/api/v1/topics/${encodeURIComponent(slug)}`, {
+      headers: cookie ? { cookie } : {},
+      cache: "no-store",
+    });
 
-  if (res.status === 404) return null;
-  if (!res.ok) return null;
-  return (await res.json()) as ApiTopicDetail;
+    if (!res.ok) return null;
+    return (await res.json()) as ApiTopicDetail;
+  } catch (err) {
+    // A network failure should read as "not found", never a 500.
+    console.error("[content] self-fetch failed", err);
+    return null;
+  }
 }
 
 export async function generateMetadata({
