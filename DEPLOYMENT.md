@@ -232,9 +232,11 @@ docker push ...
 aws apprunner start-deployment --region ap-southeast-2 --service-arn <arn>
 ```
 
-The old static S3 bundle is still in `learnai-data-corner` and `deploy.ps1`
-still builds it, but `next.config.ts` no longer sets `output: "export"`, so
-that path only works by reverting the config first.
+The old static S3 bundle was deleted from `learnai-data-corner` on
+6 August 2026 (the empty bucket remains). Rebuilding it would require
+reverting `next.config.ts` to `output: "export"` and the pre-container
+`deploy.ps1` from git history — there is no longer a static fallback sitting
+ready.
 
 Two deploy gotchas observed in practice:
 
