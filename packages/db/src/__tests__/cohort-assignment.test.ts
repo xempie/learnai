@@ -35,10 +35,15 @@ async function fetchOrganisation(id: string): Promise<OrganisationRow | null> {
 
 async function insertUser(email: string, organisationId: string | null): Promise<string> {
   const id = newId();
+  const emailDomain = email.split("@")[1] ?? "";
+  // NB: binding the same $2 placeholder both as `email` (CITEXT) and inside
+  // `split_part($2, ...)` (text) makes Postgres raise 42P08 "ambiguous
+  // parameter ... text versus citext" — compute email_domain in JS instead
+  // of reusing the parameter in two typed contexts.
   await getPool().query(
     `INSERT INTO users (id, email, email_domain, cohort_track, organisation_id)
-       VALUES ($1, $2, split_part($2, '@', 2), $3, $4)`,
-    [id, email, organisationId ? "organisation" : "individual", organisationId],
+       VALUES ($1, $2, $3, $4, $5)`,
+    [id, email, emailDomain, organisationId ? "organisation" : "individual", organisationId],
   );
   return id;
 }
