@@ -319,6 +319,15 @@ shapes, validated with zod:
 - **Refusal** — `{"error":"insufficient_source","detail":"..."}`. Returned as a **typed** `DraftResult`
   (`{ ok: false, error, detail }`), never thrown — a thin source is an expected, routine outcome.
 
+`vertical` is deliberately validated as "any non-empty string", not the closed §3.1 enum: unlike
+§5.2's triage prompt, the verbatim §5.3 prompt never states the vertical vocabulary to the model
+(its `"vertical":"..."` is just a placeholder), and a live Bedrock smoke run confirmed the model
+will invent a value outside the enum (observed: `"tools"`) for content that doesn't fit neatly —
+treating that as a fatal shape violation would burn the one regenerate attempt and throw on an
+otherwise-good draft. `draftItem` normalises it instead: the model's value if it happens to be a
+real vertical, else the candidate's own `sourceVertical` (§5.4's source-level classification), else
+`'general'`.
+
 On success, `draftItem` slugifies the title (`@learn-ai/db`'s `slugify`), sets
 `status: 'in_review'`, `author_kind: 'agent'`, `is_premium: false`, `video_url: null` (the script
 lives in `body_md` for every kind, including `video` — no recording exists yet at draft time), and

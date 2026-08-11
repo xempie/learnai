@@ -171,4 +171,45 @@ describe("draftItem", () => {
     expect(result.ok).toBe(true);
     expect(client.requests).toHaveLength(2);
   });
+
+  it("normalises an out-of-enum vertical to the candidate's sourceVertical instead of failing (live-smoke-observed: model returned 'tools')", async () => {
+    const outOfEnumVertical = JSON.stringify({
+      title: "Title",
+      summary: "Summary.",
+      body_md: "Body content here.",
+      vertical: "tools", // not in VERTICALS — a real Bedrock response returned this
+      source_url: "https://example.test/a",
+    });
+    const client = new FakeLlmClient([outOfEnumVertical]);
+
+    const result = await draftItem(
+      { candidate: makeCandidate({ sourceVertical: "marketing" }), kind: "technique" },
+      client,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.item.vertical).toBe("marketing");
+    expect(client.requests).toHaveLength(1); // no regenerate burned on this
+  });
+
+  it("normalises an out-of-enum vertical to 'general' when the candidate's sourceVertical is also unrecognised", async () => {
+    const outOfEnumVertical = JSON.stringify({
+      title: "Title",
+      summary: "Summary.",
+      body_md: "Body content here.",
+      vertical: "tools",
+      source_url: "https://example.test/a",
+    });
+    const client = new FakeLlmClient([outOfEnumVertical]);
+
+    const result = await draftItem(
+      { candidate: makeCandidate({ sourceVertical: "not-a-real-vertical" }), kind: "technique" },
+      client,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.item.vertical).toBe("general");
+  });
 });

@@ -1,6 +1,7 @@
 import { slugify } from "@learn-ai/db";
 import type { LlmClient, LlmMessage } from "@learn-ai/llm";
 import { DRAFT_SYSTEM_PROMPT } from "../prompts/draft-prompt.js";
+import { VERTICALS } from "../triage/types.js";
 import { DraftValidationError } from "./errors.js";
 import {
   DraftRefusalSchema,
@@ -8,7 +9,13 @@ import {
   DraftSuccessShapeSchema,
   SUMMARY_MAX_LENGTH,
 } from "./schema.js";
-import type { DraftItemInput, DraftKind, DraftResult } from "./types.js";
+import type {
+  DraftCandidateInput,
+  DraftItemInput,
+  DraftKind,
+  DraftResult,
+  Vertical,
+} from "./types.js";
 
 /**
  * Generous per-kind token budgets (§5.3's word counts: news 80-120,
@@ -146,7 +153,7 @@ async function resolveResponse(text: string, ctx: ResolveContext): Promise<Draft
       slug: slugify(data.title),
       summary: data.summary,
       bodyMd: data.body_md,
-      vertical: data.vertical,
+      vertical: normaliseVertical(data.vertical, candidate.sourceVertical),
       kind,
       sourceUrl: data.source_url,
       sourceId: candidate.sourceId,
@@ -158,6 +165,27 @@ async function resolveResponse(text: string, ctx: ResolveContext): Promise<Draft
       videoUrl: null,
     },
   };
+}
+
+const VERTICAL_SET: ReadonlySet<string> = new Set(VERTICALS);
+
+function isVertical(value: string): value is Vertical {
+  return VERTICAL_SET.has(value);
+}
+
+/** See schema.ts's doc comment: the model's `vertical` value is validated
+ * as "any non-empty string", not the closed §3.1 enum, because the
+ * verbatim §5.3 prompt never states the vocabulary. Normalise here instead
+ * of failing the draft: prefer the model's value when it happens to be a
+ * real vertical, else fall back to the candidate's own `sourceVertical`
+ * (§5.4's source-level classification), else `'general'`. */
+function normaliseVertical(
+  rawVertical: string,
+  sourceVertical: DraftCandidateInput["sourceVertical"],
+): Vertical {
+  if (isVertical(rawVertical)) return rawVertical;
+  if (isVertical(sourceVertical)) return sourceVertical;
+  return "general";
 }
 
 function buildUserMessage(input: DraftItemInput): string {
