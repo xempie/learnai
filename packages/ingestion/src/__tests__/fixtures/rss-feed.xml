@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Fixture RSS Feed</title>
+    <link>https://example.test/</link>
+    <description>A fixture feed for T07 integration tests</description>
+    <item>
+      <title>First Fixture Article</title>
+      <link>https://Example.test/articles/first-article/?utm_source=newsletter&amp;utm_medium=email&amp;ref=homepage</link>
+      <guid>urn:fixture:first-article</guid>
+      <pubDate>Mon, 10 Aug 2026 09:00:00 GMT</pubDate>
+      <description>Excerpt for the first fixture article.</description>
+    </item>
+    <item>
+      <title>Second Fixture Article</title>
+      <link>https://example.test/articles/second-article</link>
+      <guid>urn:fixture:second-article</guid>
+      <pubDate>Tue, 11 Aug 2026 09:00:00 GMT</pubDate>
+      <description>Excerpt for the second fixture article.</description>
+    </item>
+  </channel>
+</rss>

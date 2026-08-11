@@ -140,6 +140,53 @@ admin queue for Vala to rename") with an inline rename form per row
 `slugify` (`packages/db/src/slug.ts`, also used by T05's `cohort-assignment.ts`) and retries with
 a numeric suffix on a genuine slug collision with a different org.
 
+## RSS ingestion
+
+`packages/ingestion` (`@learn-ai/ingestion`, T07) implements the §5.1 `PollSources` /
+`FetchFeed` / `NormaliseAndDedupe` stages as plain functions — T11 wraps them in Lambdas later,
+so nothing here imports the AWS SDK. `runIngestion(pool)` is the entry point: `pollDueSources`
+selects active, `ingest_method = 'rss'` sources whose `poll_interval_min` has elapsed since
+`last_polled_at`; `ingestSource` then fetches each one (`fetchFeed`, 20s timeout, `rss-parser` —
+handles RSS 2.0 and Atom through the same code path), canonicalises every item's URL
+(`normaliseUrl`), sha256-hashes it (`candidateHash`), and inserts into `source_candidates` via
+`ON CONFLICT (url_hash) DO NOTHING` — re-running ingestion for a source it has already seen
+inserts zero duplicate rows.
+
+**URL normalisation rules** (`packages/ingestion/src/url.ts`, applied in this order): drop the
+fragment; lowercase the hostname only (paths/query stay case-sensitive — some CMSes serve
+case-sensitive slugs); strip tracking params (`utm_*` case-insensitively, plus `fbclid`,
+`gclid`, `mc_cid`, `mc_eid`, `igshid`, `ref`, `ref_src`); sort whatever query params remain by
+key; remove a single trailing slash from the path (unless the path is just `/`).
+
+**Failure isolation:** `ingestSource` never throws — a bad feed (network error, non-2xx, XML
+parse failure, an item with neither `link` nor `guid`) is caught and turned into a failure
+result, so `runIngestion` always finishes the whole batch. Each source tracks
+`consecutive_failures`, reset to 0 on any successful poll; the 5th consecutive failure sets
+`active = false` and logs an operational line (`MAX_CONSECUTIVE_FAILURES` in
+`packages/ingestion/src/types.ts`).
+
+Run manually: `pnpm --filter @learn-ai/ingestion run ingest` (needs `DATABASE_URL`). Add
+`-- --dry-run` to fetch, parse, and normalise a small sample of the real seeded feeds
+**without touching the database** — proves the seeded feed URLs still parse:
+
+```
+pnpm --filter @learn-ai/ingestion run ingest -- --dry-run
+```
+
+Integration tests (`packages/ingestion/src/__tests__/ingest.test.ts`) serve fixture RSS/Atom
+XML from a local `node:http` server on an ephemeral port — deliberately never real internet in
+CI — and cover: candidate insertion with title/excerpt/`published_at` mapped from both RSS and
+Atom, zero duplicates on re-run, a malformed feed failing without aborting the batch, and
+auto-deactivation on the 5th consecutive failure. Same skip-locally/run-in-CI pattern as
+`packages/db`'s migration tests (`DATABASE_URL` unset → skipped, not failed).
+
+**Known-dead seeded feed URLs (pre-existing T02 data issue, not fixed here):** a handful of the
+provisional `content_sources` seed rows 404 or 403 as of this writing (Anthropic News, CSIRO
+News, The Verge — AI, Ben's Bites, Microsoft AI Blog). `ingestSource`'s failure isolation means
+these simply accumulate `consecutive_failures` and auto-deactivate rather than blocking
+ingestion of the working sources; still worth flagging for the founder review the seed list
+already requires (see [Database](#database) above).
+
 ## Scripts
 
 Run from the repo root; each fans out across all workspaces (`apps/*`, `packages/*`).
@@ -158,9 +205,10 @@ Run from the repo root; each fans out across all workspaces (`apps/*`, `packages
 ## Monorepo layout
 
 ```
-apps/web         Next.js App Router frontend (TypeScript, Tailwind)
-packages/db      Schema, migrations, seeds, pg pool client (@learn-ai/db)
-packages/cohort  Domain parsing / cohort classification, pure (@learn-ai/cohort)
+apps/web           Next.js App Router frontend (TypeScript, Tailwind)
+packages/db        Schema, migrations, seeds, pg pool client (@learn-ai/db)
+packages/cohort    Domain parsing / cohort classification, pure (@learn-ai/cohort)
+packages/ingestion RSS/Atom polling, URL dedupe, source_candidates writer (@learn-ai/ingestion)
 ```
 
 ## Build spec

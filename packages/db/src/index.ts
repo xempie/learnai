@@ -15,6 +15,16 @@ export { createPool, getPool, newId } from "./client";
 export { assignCohort } from "./cohort-assignment";
 export type { CohortAssignment } from "./cohort-assignment";
 export { slugify } from "./slug";
+// T07: @learn-ai/ingestion's CLI --dry-run needs the real seeded feed URLs
+// (no DB available) to prove they still parse. Re-exported here rather than
+// duplicated so there is exactly one list of provisional sources.
+//
+// Extensionless specifier (not "./seeds/content-sources.js"), same reason
+// as "./client" and "./cohort-assignment" above: Turbopack traces every
+// file index.ts re-exports, and only resolves the extensionless form for
+// those.
+export { CONTENT_SOURCES } from "./seeds/content-sources";
+export type { ContentSourceSeed } from "./seeds/content-sources";
 // Re-exported so apps/web can type a `Pool` parameter (e.g. T06's admin
 // rename endpoint, test helpers) without depending on "pg" directly —
 // apps/web has no "pg"/"@types/pg" of its own; resolving `Pool`'s type
