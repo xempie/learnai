@@ -1,11 +1,9 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const packageRoot = path.resolve(__dirname, "../..");
-const require = createRequire(import.meta.url);
 
 export function requireDatabaseUrl(): string | undefined {
   return process.env.DATABASE_URL;
@@ -13,7 +11,17 @@ export function requireDatabaseUrl(): string | undefined {
 
 /** Run node-pg-migrate's CLI against this package's migrations directory. */
 export function runMigrate(direction: "up" | "down"): void {
-  const bin = require.resolve("node-pg-migrate/bin/node-pg-migrate.js");
+  // require.resolve can't reach the bin: node-pg-migrate's "exports" map does
+  // not expose ./bin/*, so resolution fails (as ".js.js") on every platform.
+  // pnpm symlinks the package into this workspace's node_modules, so the
+  // direct path is stable locally and in CI.
+  const bin = path.join(
+    packageRoot,
+    "node_modules",
+    "node-pg-migrate",
+    "bin",
+    "node-pg-migrate.js",
+  );
   execFileSync(
     process.execPath,
     [bin, direction, "--migrations-dir", path.join(packageRoot, "migrations")],
