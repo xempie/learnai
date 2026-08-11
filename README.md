@@ -243,6 +243,54 @@ the configured default model and prints the result (or the exact AWS error — e
 `AccessDeniedException` when Bedrock model access hasn't been granted in the console yet — as a
 founder checkpoint, without failing anything).
 
+## Triage agent
+
+`packages/agents` (`@learn-ai/agents`, T09) implements the §5.2 triage agent and the §5.4
+Tier-3-exclusion building block for `SelectTopN`. This package will also hold T10's draft agent.
+
+**`TRIAGE_SYSTEM_PROMPT`** (`src/prompts/triage-prompt.ts`) is the §5.2 system prompt copied
+verbatim from `LEARN_AI_V1_BUILD_SPEC.md` — NON-NEGOTIABLE per AGENTS.md/§5, changes require
+founder approval to the spec file first. `src/__tests__/triage-prompt.spec.test.ts` independently
+re-extracts the fenced block from the spec file at test time and asserts byte-for-byte equality
+with the constant, so the two can never silently drift apart.
+
+**`triageCandidates(candidates, client, pool, options?)`** batches `candidates` (batch size ~20,
+`DEFAULT_BATCH_SIZE`) into one `LlmRequest` per batch (`responseFormat: 'json'`), validates the
+response array against a zod schema (`id` must belong to the batch, `score` in `[0,1]`, `vertical`
+one of the §3.1 enum values), then persists `triage_score`/`triage_reason` plus the assigned
+vertical for every matched candidate. §3.4's `source_candidates` table has **no `vertical`
+column**, so the vertical is written into `raw.triage_vertical` via `jsonb_set` (merged, not
+overwritten — every other key ingestion wrote to `raw` survives). Score is rounded to 3 decimals;
+a `reason` longer than 15 words is truncated rather than rejected (the prompt asks for both, but
+models don't always comply exactly). A malformed response entry (bad type, out-of-range score,
+unknown vertical, an id not in the batch) is dropped and logged — the rest of the batch is still
+scored. A candidate the response never mentions is left unscored (`triage_score` stays `NULL`)
+and reported back in `missingIds`, never thrown — one bad batch must not fail a whole triage run.
+The caller is expected to construct `client` via `@learn-ai/llm`'s `createLlmClient({ agentName:
+'triage', pool, executionArn? })`, so every triage call's cost/tokens land in `agent_runs` (§3.7)
+for free.
+
+**`selectCandidates(pool, topN)`** is the §5.4 hard rule as a standalone, kind-agnostic query: the
+highest-`triage_score` `status='new'` candidates, joined to `content_sources` to exclude
+`tier = 3` — "Tier 3 candidates are NEVER in the draft selection set." Chosen rows are marked
+`status='selected'` so a re-run doesn't reselect them. Deliberately does not implement the full
+1-news + 1-technique + 1-video selection or the §5.4 vertical rotation — those are T10/T11's job,
+built on top of this.
+
+**Tests**: `triage-candidates.test.ts` batches 20 fixture candidates through a `FakeLlmClient`
+(an in-process `LlmClient` stand-in scripted with canned JSON — the T09 controller decision's
+"FakeTransport" seam applied at the `LlmClient` level, since that is what `triageCandidates`
+actually depends on) and an in-memory `FakePool`, covering batch-splitting, malformed-entry
+drop-and-continue, unmatched/missing ids, word truncation, and score rounding — all without a
+database. `triage-candidates.integration.test.ts` and `select-candidates.integration.test.ts` are
+real Postgres round-trips (20-candidate batch persisted correctly; a high-scoring Tier 3 candidate
+is never selected) — skipped, not failed, when `DATABASE_URL` is unset, same pattern as every
+other DB-backed suite in this repo.
+
+**Live Bedrock smoke check** (report-only, not part of the test suite):
+`pnpm --filter @learn-ai/agents run smoke:triage` runs one real triage batch of 3 tiny fixture
+candidates through Bedrock and prints the scores/reasons/verticals it returned.
+
 ## Scripts
 
 Run from the repo root; each fans out across all workspaces (`apps/*`, `packages/*`).
@@ -266,6 +314,7 @@ packages/db        Schema, migrations, seeds, pg pool client (@learn-ai/db)
 packages/cohort    Domain parsing / cohort classification, pure (@learn-ai/cohort)
 packages/ingestion RSS/Atom polling, URL dedupe, source_candidates writer (@learn-ai/ingestion)
 packages/llm        LlmClient abstraction — Bedrock + Anthropic, agent_runs logging (@learn-ai/llm)
+packages/agents     Triage agent, Tier-3-exclusion SelectTopN building block (@learn-ai/agents)
 ```
 
 ## Build spec

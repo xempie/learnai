@@ -73,6 +73,34 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/agents:
+    dependencies:
+      '@learn-ai/db':
+        specifier: workspace:*
+        version: link:../db
+      '@learn-ai/llm':
+        specifier: workspace:*
+        version: link:../llm
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      dotenv-cli:
+        specifier: ^7.4.4
+        version: 7.4.4
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.12
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@20.19.43)(lightningcss@1.32.0)
+
   packages/cohort:
     dependencies:
       tldts:
