@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+coverage/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# env files — secrets never enter the repo (SPEC §9)
+.env*
+!.env.example
+
+.DS_Store
+*.pem
+.superpowers/
+.audit/
