@@ -15,7 +15,11 @@
     "test:coverage": "vitest run --coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "build": "pnpm -r --if-present run build"
+    "build": "pnpm -r --if-present run build",
+    "db:up": "docker compose up -d",
+    "db:migrate": "pnpm --filter @learn-ai/db run migrate:up",
+    "db:migrate:down": "pnpm --filter @learn-ai/db run migrate:down",
+    "db:seed": "pnpm --filter @learn-ai/db run seed"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.9",

@@ -13,13 +13,36 @@ git clone https://github.com/xempie/learnai.git
 cd learnai
 corepack enable
 pnpm install
+cp .env.example .env.local
+pnpm db:up
+pnpm db:migrate
+pnpm db:seed
 pnpm dev
 ```
 
 `pnpm dev` serves `apps/web` at http://localhost:3000.
 
-Requires Node 22+ (via `corepack`, which reads the `packageManager` field). No database is
-required yet — schema and migrations land in T02.
+Requires Node 22+ (via `corepack`, which reads the `packageManager` field) and Docker Desktop
+for the local Postgres container. `pnpm db:up` starts `postgres:16-alpine` on `localhost:5434`
+(container `learnai-postgres` — port 5434, not 5433, so it doesn't clash with the old project's
+Postgres container). `pnpm db:migrate` runs the `@learn-ai/db` migrations; `pnpm db:seed` loads
+content sources, free-mail/disposable domain lists, known institutions, and the warm-up
+schedule. Schema source of truth is `LEARN_AI_V1_BUILD_SPEC.md` §3; the migration lives at
+`packages/db/migrations`.
+
+## Database
+
+| Script                 | Purpose                                             |
+| ---------------------- | --------------------------------------------------- |
+| `pnpm db:up`           | Start the local Postgres container (docker compose) |
+| `pnpm db:migrate`      | Run pending migrations (`packages/db`)              |
+| `pnpm db:migrate:down` | Roll back the last migration                        |
+| `pnpm db:seed`         | Idempotently seed reference/lookup data             |
+
+The `content_sources` seed is **provisional** — LEARN_AI_V1_BUILD_SPEC.md §12 T02 calls for the
+business plan's Appendix B source list, which is not available in this repo. `packages/db/src/seeds/content-sources.ts`
+seeds ≥25 real, working AI-news RSS sources across tiers 1–3 as a stand-in and is marked
+`PROVISIONAL` in code; founder review is required before it is treated as final.
 
 ## Scripts
 
@@ -40,7 +63,7 @@ Run from the repo root; each fans out across all workspaces (`apps/*`, `packages
 
 ```
 apps/web        Next.js App Router frontend (TypeScript, Tailwind)
-packages/*       Shared packages (none yet)
+packages/db      Schema, migrations, seeds, pg pool client (@learn-ai/db)
 ```
 
 ## Build spec

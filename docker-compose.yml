@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: learnai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: learnai
+      POSTGRES_PASSWORD: learnai
+      POSTGRES_DB: learnai
+    ports:
+      # Host 5434 -> container 5432. 5433 is already used by the old (Acadu) project's
+      # Postgres container on this machine, so Learn AI uses 5434 to avoid a clash.
+      - "5434:5432"
+    volumes:
+      - learnai_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learnai -d learnai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  learnai_postgres_data:

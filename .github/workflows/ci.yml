@@ -12,6 +12,22 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: learnai
+          POSTGRES_PASSWORD: learnai
+          POSTGRES_DB: learnai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U learnai -d learnai"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://learnai:learnai@localhost:5432/learnai
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,8 +50,14 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Migrate database up (also exercised down/up again inside the test suite)
+        run: pnpm --filter @learn-ai/db exec node-pg-migrate up
+
       - name: Test
         run: pnpm test
+
+      - name: Seed database
+        run: pnpm --filter @learn-ai/db exec tsx src/seed.ts
 
       - name: Build
         run: pnpm build

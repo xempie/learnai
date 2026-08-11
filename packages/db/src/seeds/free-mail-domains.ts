@@ -1,0 +1,31 @@
+// §4.1 FREE_MAIL_DOMAINS — verbatim list from LEARN_AI_V1_BUILD_SPEC.md §4.1.
+// Seeded into a table (not a hardcoded array) so Vala can add entries
+// without a deploy.
+export const FREE_MAIL_DOMAINS: readonly string[] = [
+  "gmail.com",
+  "googlemail.com",
+  "outlook.com",
+  "hotmail.com",
+  "live.com",
+  "live.com.au",
+  "msn.com",
+  "yahoo.com",
+  "yahoo.com.au",
+  "ymail.com",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "aol.com",
+  "proton.me",
+  "protonmail.com",
+  "gmx.com",
+  "mail.com",
+  "zoho.com",
+  "bigpond.com",
+  "bigpond.net.au",
+  "optusnet.com.au",
+  "iinet.net.au",
+  "tpg.com.au",
+  "internode.on.net",
+  "westnet.com.au",
+];
