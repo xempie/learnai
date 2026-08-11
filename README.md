@@ -44,6 +44,26 @@ business plan's Appendix B source list, which is not available in this repo. `pa
 seeds ≥25 real, working AI-news RSS sources across tiers 1–3 as a stand-in and is marked
 `PROVISIONAL` in code; founder review is required before it is treated as final.
 
+## Auth
+
+Auth.js (NextAuth) v5, Credentials provider (email + password), JWT sessions. Implemented
+behind the `AuthProvider` interface (`LEARN_AI_V1_BUILD_SPEC.md` §2.2) in
+`apps/web/src/lib/auth/provider.ts` — every route depends on that interface, not on
+`next-auth` directly, so swapping providers only touches `lib/auth/`. `users` (packages/db) is
+the system of record for identity; `accounts` / `sessions` / `verification_tokens` /
+`auth_credentials` (packages/db migration `1755100000000_auth-adapter-tables`) hold
+credentials/session material only and always FK to `users(id)`.
+
+Signup does **not** yet run real cohort assignment (T05) — every new user is
+`cohort_track = 'individual'` until then. Verification emails are logged to the server console
+in dev (`apps/web/src/lib/auth/mailer.ts`); T19 swaps in SES.
+
+| Endpoint                       | Purpose                                                     |
+| ------------------------------ | ----------------------------------------------------------- |
+| `POST /api/v1/auth/signup`     | Create a `users` row + password credential                  |
+| `POST/GET /api/v1/auth/verify` | Verify email via a one-time token                           |
+| `GET /api/v1/me`               | Profile skeleton; proves `requireUser`/`requireRole` guards |
+
 ## Scripts
 
 Run from the repo root; each fans out across all workspaces (`apps/*`, `packages/*`).

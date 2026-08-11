@@ -59,6 +59,11 @@ describe.skipIf(!databaseUrl)("migrations: up / down / up cycle", () => {
       "free_mail_domains",
       "disposable_domains",
       "known_institutions",
+      // T03 — Auth.js adapter + credentials tables.
+      "accounts",
+      "sessions",
+      "verification_tokens",
+      "auth_credentials",
     ]) {
       expect(tableNames.has(expected), `expected table ${expected} to exist`).toBe(true);
     }
@@ -93,7 +98,7 @@ describe.skipIf(!databaseUrl)("migrations: up / down / up cycle", () => {
     const { rows } = await getPool().query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-         AND table_name IN ('users', 'content_items', 'organisations', 'warmup_schedule')`,
+         AND table_name IN ('users', 'content_items', 'organisations', 'warmup_schedule', 'auth_credentials')`,
     );
     expect(rows).toHaveLength(0);
 
