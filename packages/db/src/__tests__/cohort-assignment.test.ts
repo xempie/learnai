@@ -159,11 +159,11 @@ describe.skipIf(!databaseUrl)("assignCohort (§4.1 / T05)", () => {
     expect(resultA.organisationId).not.toBeNull();
     expect(resultA.organisationId).toBe(resultB.organisationId);
 
-    const orgDomains = await getPool().query<{ count: string }>(
+    const orgDomains = await getPool().query<{ count: number }>(
       `SELECT count(*)::int AS count FROM organisation_domains WHERE domain = $1`,
       [domain],
     );
-    expect(orgDomains.rows[0]?.count).toBe("1");
+    expect(orgDomains.rows[0]?.count).toBe(1);
 
     // Exercise the member_count trigger end to end: insert the two users the
     // signup flow would have created with this assignment.
