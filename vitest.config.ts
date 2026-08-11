@@ -31,6 +31,21 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       reportsDirectory: "./coverage",
+      // T04 (§11): "Domain parsing and cohort assignment: ≥ 95% branch
+      // coverage." `enabled: true` makes coverage collection (and
+      // therefore this threshold check) run on plain `vitest run`/`pnpm
+      // test` — not just `pnpm test:coverage` — so CI's existing `pnpm
+      // test` step already fails the build if packages/cohort drops below
+      // the bar. The threshold is scoped to packages/cohort/src via a glob
+      // key (Vitest resolves thresholds either "for specific files defined
+      // by glob pattern or global for all other files") so it does not
+      // require every other package in the monorepo to hit 95% branches.
+      enabled: true,
+      thresholds: {
+        "packages/cohort/src/**": {
+          branches: 95,
+        },
+      },
     },
   },
 });

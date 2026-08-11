@@ -64,6 +64,31 @@ in dev (`apps/web/src/lib/auth/mailer.ts`); T19 swaps in SES.
 | `POST/GET /api/v1/auth/verify` | Verify email via a one-time token                           |
 | `GET /api/v1/me`               | Profile skeleton; proves `requireUser`/`requireRole` guards |
 
+## Cohort assignment
+
+Domain parsing and organisation matching (`LEARN_AI_V1_BUILD_SPEC.md` §4.1) lives in
+`packages/cohort` (`@learn-ai/cohort`) as a pure, DB-free layer: `classifyEmail(email, {
+freeMailDomains, disposableDomains })` normalises and validates an address, reduces its host to
+a registrable domain via a real Public Suffix List (the `tldts` package — `mail.student.mq.edu.au`
+→ `mq.edu.au`), and returns a discriminated union (`invalid` | `free_mail` | `disposable` |
+`organisation`). `deriveName`/`inferKind` implement the spec's fallback naming/kind rules for
+domains with no `known_institutions` match. The DB-aware find-or-create against
+`organisations`/`organisation_domains` (wiring this into signup, auto-creating orgs,
+`known_institutions` lookup) is T05 — not yet built; every user is still `cohort_track =
+'individual'` until then.
+
+**Note:** the real Public Suffix List's `gov.au` entry is a plain suffix (no state-level
+wildcard), so `health.nsw.gov.au` and `education.nsw.gov.au` both reduce to the _same_
+registrable domain, `nsw.gov.au` — per the spec's own reduction rule (suffix + one label), not a
+bug in this package. The §4.1 `known_institutions` seed table (`packages/db`) keys those two
+hostnames as if they were distinct registrable domains; T05 will need to resolve this (e.g. by
+re-keying the seed to `nsw.gov.au`, or matching on full hostname before falling back to
+registrable-domain lookup) before that seed data behaves as intended.
+
+Coverage for this package is enforced separately: `vitest.config.ts` sets `coverage.enabled:
+true` with a threshold scoped to `packages/cohort/src/**` (branches ≥ 95%, per §11), so `pnpm
+test` fails the build if it regresses — not just `pnpm test:coverage`.
+
 ## Scripts
 
 Run from the repo root; each fans out across all workspaces (`apps/*`, `packages/*`).
@@ -82,8 +107,9 @@ Run from the repo root; each fans out across all workspaces (`apps/*`, `packages
 ## Monorepo layout
 
 ```
-apps/web        Next.js App Router frontend (TypeScript, Tailwind)
+apps/web         Next.js App Router frontend (TypeScript, Tailwind)
 packages/db      Schema, migrations, seeds, pg pool client (@learn-ai/db)
+packages/cohort  Domain parsing / cohort classification, pure (@learn-ai/cohort)
 ```
 
 ## Build spec
