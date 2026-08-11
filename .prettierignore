@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+dist
+coverage
+pnpm-lock.yaml
+.superpowers
+.claude
+
+# Not ours to touch — see AGENTS.md
+LEARN_AI_V1_BUILD_SPEC.md
+AGENTS.md
