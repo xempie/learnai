@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { getPool, newId } from "@learn-ai/db";
+import { writeAgentRun } from "@learn-ai/llm";
 import { persistDrafts } from "../draft/persist-drafts.js";
 import type { DraftedContentItem } from "../draft/types.js";
 import { requireDatabaseUrl } from "./test-helpers.js";
@@ -21,8 +22,24 @@ async function insertSource(): Promise<string> {
   return id;
 }
 
+/** `content_items.agent_run_id` has a real FK to `agent_runs(id)` (§3.3) —
+ * unlike the unit-level FakeDraftPool test, a fixture item here needs a
+ * REAL `agent_runs` row to point at, not just any UUID. */
+async function insertAgentRun(): Promise<string> {
+  return writeAgentRun(getPool(), {
+    agentName: "draft",
+    modelId: "fixture-model",
+    inputTokens: 10,
+    outputTokens: 10,
+    latencyMs: 1,
+    costUsd: null,
+    status: "ok",
+  });
+}
+
 function makeItem(
   sourceId: string,
+  agentRunId: string,
   overrides: Partial<DraftedContentItem> = {},
 ): DraftedContentItem {
   return {
@@ -37,7 +54,7 @@ function makeItem(
     sourceTier: 1,
     status: "in_review",
     authorKind: "agent",
-    agentRunId: newId(),
+    agentRunId,
     isPremium: false,
     videoUrl: null,
     ...overrides,
@@ -62,11 +79,12 @@ describe.skipIf(!databaseUrl)("persistDrafts integration", () => {
 
   it("creates an edition and inserts drafted items with status='in_review'", async () => {
     const sourceId = await insertSource();
+    const agentRunId = await insertAgentRun();
     const editionDate = randomEditionDate();
     const items = [
-      makeItem(sourceId, { kind: "news" }),
-      makeItem(sourceId, { kind: "technique" }),
-      makeItem(sourceId, { kind: "video" }),
+      makeItem(sourceId, agentRunId, { kind: "news" }),
+      makeItem(sourceId, agentRunId, { kind: "technique" }),
+      makeItem(sourceId, agentRunId, { kind: "video" }),
     ];
 
     const result = await persistDrafts(items, editionDate, getPool());
@@ -101,16 +119,17 @@ describe.skipIf(!databaseUrl)("persistDrafts integration", () => {
 
   it("dedupes a slug collision against a real existing row with a numeric suffix", async () => {
     const sourceId = await insertSource();
+    const agentRunId = await insertAgentRun();
     const sharedTitle = `Collision fixture ${newId()}`;
     const editionDate = randomEditionDate();
 
     const first = await persistDrafts(
-      [makeItem(sourceId, { title: sharedTitle })],
+      [makeItem(sourceId, agentRunId, { title: sharedTitle })],
       editionDate,
       getPool(),
     );
     const second = await persistDrafts(
-      [makeItem(sourceId, { title: sharedTitle })],
+      [makeItem(sourceId, agentRunId, { title: sharedTitle })],
       editionDate,
       getPool(),
     );
@@ -125,10 +144,11 @@ describe.skipIf(!databaseUrl)("persistDrafts integration", () => {
 
   it("reuses the same edition row when called twice for the same edition_date", async () => {
     const sourceId = await insertSource();
+    const agentRunId = await insertAgentRun();
     const editionDate = randomEditionDate();
 
-    const first = await persistDrafts([makeItem(sourceId)], editionDate, getPool());
-    const second = await persistDrafts([makeItem(sourceId)], editionDate, getPool());
+    const first = await persistDrafts([makeItem(sourceId, agentRunId)], editionDate, getPool());
+    const second = await persistDrafts([makeItem(sourceId, agentRunId)], editionDate, getPool());
 
     expect(second.editionId).toBe(first.editionId);
     const { rows } = await getPool().query<{ count: string }>(
