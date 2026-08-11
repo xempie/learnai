@@ -69,6 +69,21 @@ describe.skipIf(!databaseUrl)("migrations: up / down / up cycle", () => {
     }
   });
 
+  it("T06: users.show_in_cohort exists, NOT NULL, defaulting to true", async () => {
+    const { rows } = await getPool().query<{
+      column_name: string;
+      is_nullable: string;
+      column_default: string | null;
+    }>(
+      `SELECT column_name, is_nullable, column_default
+         FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'show_in_cohort'`,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.is_nullable).toBe("NO");
+    expect(rows[0]?.column_default).toContain("true");
+  });
+
   it("the review-gate CHECK constraints are present", async () => {
     const { rows } = await getPool().query<{ conname: string }>(
       `SELECT conname FROM pg_constraint WHERE conname IN ('published_needs_approval', 'news_needs_source')`,

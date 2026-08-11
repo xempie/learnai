@@ -47,6 +47,10 @@ import { classifyEmail, normaliseEmail } from "@learn-ai/cohort";
 // a bundled-by-source workspace package only resolves the extensionless
 // form for this hop, the same way it does for index.ts's own re-exports.
 import { getPool, newId } from "./client";
+// Same extensionless-specifier rule (T06): index.ts re-exports slugify
+// too, so this hop needs to satisfy Turbopack's resolver exactly like the
+// two imports above.
+import { slugify } from "./slug";
 import type { Pool } from "pg";
 
 export interface CohortAssignment {
@@ -69,21 +73,6 @@ function isUniqueViolation(error: unknown, constraint: string): boolean {
   if (!error || typeof error !== "object") return false;
   const err = error as { code?: string; constraint?: string };
   return err.code === PG_UNIQUE_VIOLATION && err.constraint === constraint;
-}
-
-/**
- * §4.1 slug generation: `slugify(name)`, deduplicated. Deliberately
- * minimal — this package has no other slugify need, so a small local
- * helper beats pulling in a dependency for one call site.
- */
-function slugify(name: string): string {
-  const base = name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "") // strip combining diacritics
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return base.length > 0 ? base : "org";
 }
 
 async function loadDomainList(

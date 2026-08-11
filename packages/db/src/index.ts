@@ -14,3 +14,10 @@
 export { createPool, getPool, newId } from "./client";
 export { assignCohort } from "./cohort-assignment";
 export type { CohortAssignment } from "./cohort-assignment";
+export { slugify } from "./slug";
+// Re-exported so apps/web can type a `Pool` parameter (e.g. T06's admin
+// rename endpoint, test helpers) without depending on "pg" directly —
+// apps/web has no "pg"/"@types/pg" of its own; resolving `Pool`'s type
+// through this package (which does) keeps that dependency internal to
+// @learn-ai/db, same boundary as every other pg-aware symbol here.
+export type { Pool } from "pg";

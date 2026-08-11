@@ -103,6 +103,43 @@ Coverage for this package is enforced separately: `vitest.config.ts` sets `cover
 true` with a threshold scoped to `packages/cohort/src/**` (branches ≥ 95%, per §11), so `pnpm
 test` fails the build if it regresses — not just `pnpm test:coverage`.
 
+## Cohort page, claims, admin rename queue
+
+`/org/[slug]` (`LEARN_AI_V1_BUILD_SPEC.md` §4.2, T06) is a Next.js server component that consumes
+**only** the REST API, through `apps/web/src/lib/api-client.ts` (`apiFetch`) — the single module
+§2.1 requires every server-rendered page to go through. `apiFetch` forwards the current request's
+session cookie to `GET /api/v1/org/:slug`; the route handler runs the real `requireUser` guard,
+so the page has no `authProvider`/`@learn-ai/db` import of its own and reacts only to the
+resulting `ApiClientError` status (401 → inline "sign in" message — no `/signin` page exists yet;
+403 → the route's own error message). There is no redirect to a sign-in page because none exists
+in this repo yet.
+
+**Privacy (NON-NEGOTIABLE, enforced in the route handler, not the page):**
+
+- No email address is ever selected into the response — the colleague-activity query reads only
+  `display_name` and `streaks.current_streak`.
+- Members with `show_in_cohort = false` are excluded outright. That column does not appear in
+  §3.2's `users` table even though §4.2 requires it — the spec references it without defining it
+  (§0 rule 5). Migration `1755200000000_add-show-in-cohort.js` adds
+  `show_in_cohort BOOLEAN NOT NULL DEFAULT TRUE` (opt-out, reversible) as the only sane reading.
+- When `organisations.member_count < 3`, the response returns `suppressed: true` with
+  `colleagueCount`, `colleagues`, and `aggregates` all nulled/emptied — showing named
+  colleagues' streaks in a 1–2 person org would trivially deanonymise them.
+- "Most-read vertical" has no read-tracking source at T06, so it is always `null`; "briefs
+  completed this week" is a real (currently always-zero) query against `completions`, empty until
+  T15/T20.
+
+`POST /api/v1/org/:slug/claim` inserts a `pending` `organisation_claims` row for a member of an
+unclaimed org (`claimed_by IS NULL`); 409s if the org is already claimed by anyone, or if the same
+user already has a pending claim on it.
+
+`/admin/organisations` (role `admin`, via `GET /api/v1/admin/organisations?auto_created=true`)
+lists organisations auto-created from a derived domain name (§4.1's last line — "surfaced in an
+admin queue for Vala to rename") with an inline rename form per row
+(`PATCH /api/v1/admin/organisations/:id`). Renaming re-derives the slug via the shared
+`slugify` (`packages/db/src/slug.ts`, also used by T05's `cohort-assignment.ts`) and retries with
+a numeric suffix on a genuine slug collision with a different org.
+
 ## Scripts
 
 Run from the repo root; each fans out across all workspaces (`apps/*`, `packages/*`).
