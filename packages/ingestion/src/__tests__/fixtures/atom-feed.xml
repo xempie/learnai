@@ -6,7 +6,7 @@
   <updated>2026-08-12T09:00:00Z</updated>
   <entry>
     <title>Atom Fixture Entry</title>
-    <link href="https://example.test/atom/entry-one"/>
+    <link href="https://example.test/atom/entry-one-__TOKEN__"/>
     <id>urn:fixture:atom-entry-one</id>
     <updated>2026-08-12T09:00:00Z</updated>
     <summary>Excerpt for the atom fixture entry.</summary>

@@ -37,12 +37,23 @@ const routes: Record<string, { status: number; body: string }> = {
 
 beforeAll(async () => {
   server = createServer((req, res) => {
-    const route = req.url ? routes[req.url] : undefined;
+    const requestUrl = new URL(req.url ?? "/", "http://127.0.0.1");
+    const route = routes[requestUrl.pathname];
     if (!route) {
       res.writeHead(404).end("no such fixture route");
       return;
     }
-    res.writeHead(route.status, { "content-type": "application/xml" }).end(route.body);
+    // rss-feed.xml / atom-feed.xml embed a `__TOKEN__` placeholder in their
+    // article links. Substituting in the caller-supplied `?token=` here
+    // gives every test its own unique article URLs (and therefore unique
+    // url_hash values) even though every test shares one Postgres instance
+    // and one `source_candidates.url_hash` UNIQUE constraint — without
+    // this, two different tests' sources would insert candidates for the
+    // exact same URL and collide with each other via ON CONFLICT DO
+    // NOTHING, which is exactly the dedupe behaviour under test.
+    const token = requestUrl.searchParams.get("token");
+    const body = token ? route.body.replaceAll("__TOKEN__", token) : route.body;
+    res.writeHead(route.status, { "content-type": "application/xml" }).end(body);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
@@ -60,12 +71,32 @@ afterAll(async () => {
   }
 });
 
-function makeSource(overrides: Partial<ContentSourceRow> = {}): ContentSourceRow {
+type FixtureKind = "rss" | "atom" | "malformed" | "not-found";
+const FIXTURE_FILES: Record<FixtureKind, string> = {
+  rss: "rss-feed.xml",
+  atom: "atom-feed.xml",
+  malformed: "malformed-feed.xml",
+  "not-found": "not-found.xml",
+};
+
+/** Feed URL for a fixture, tokenised with `sourceId` so its article URLs
+ * (and therefore their url_hash) are unique to this one source/call. */
+function fixtureUrl(kind: FixtureKind, sourceId: string): string {
+  const url = new URL(FIXTURE_FILES[kind], baseUrl);
+  url.searchParams.set("token", sourceId);
+  return url.toString();
+}
+
+function makeSource(
+  overrides: Partial<ContentSourceRow> & { fixtureKind?: FixtureKind } = {},
+): ContentSourceRow {
+  const { fixtureKind = "rss", ...rest } = overrides;
+  const id = rest.id ?? newId();
   return {
-    id: newId(),
-    name: overrides.name ?? "Fixture Source",
+    id,
+    name: rest.name ?? "Fixture Source",
     homepage_url: "https://example.test/",
-    feed_url: `${baseUrl}/rss-feed.xml`,
+    feed_url: rest.feed_url ?? fixtureUrl(fixtureKind, id),
     tier: 1,
     vertical: "general",
     ingest_method: "rss",
@@ -75,7 +106,7 @@ function makeSource(overrides: Partial<ContentSourceRow> = {}): ContentSourceRow
     last_item_at: null,
     consecutive_failures: 0,
     created_at: new Date(),
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -131,7 +162,7 @@ describe.skipIf(!databaseUrl)("@learn-ai/ingestion integration", () => {
   });
 
   it("ingestSource inserts candidates from a fixture RSS feed with title/excerpt/published_at mapped", async () => {
-    const source = makeSource({ feed_url: `${baseUrl}/rss-feed.xml` });
+    const source = makeSource();
     await insertSource(source);
 
     const result = await ingestSource(getPool(), source);
@@ -151,7 +182,7 @@ describe.skipIf(!databaseUrl)("@learn-ai/ingestion integration", () => {
     expect(first.excerpt).toBe("Excerpt for the first fixture article.");
     expect(first.published_at).toBeInstanceOf(Date);
     // tracking params (utm_source, utm_medium, ref) stripped by normaliseUrl
-    expect(first.url).toBe("https://example.test/articles/first-article");
+    expect(first.url).toBe(`https://example.test/articles/first-article-${source.id}`);
     expect(first.url_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(first.raw).toBeTruthy();
 
@@ -162,10 +193,7 @@ describe.skipIf(!databaseUrl)("@learn-ai/ingestion integration", () => {
   });
 
   it("ingestSource maps a fixture Atom feed the same way as RSS", async () => {
-    const source = makeSource({
-      name: "Atom Fixture Source",
-      feed_url: `${baseUrl}/atom-feed.xml`,
-    });
+    const source = makeSource({ name: "Atom Fixture Source", fixtureKind: "atom" });
     await insertSource(source);
 
     const result = await ingestSource(getPool(), source);
@@ -181,15 +209,12 @@ describe.skipIf(!databaseUrl)("@learn-ai/ingestion integration", () => {
     expect(rows[0]).toMatchObject({
       title: "Atom Fixture Entry",
       excerpt: "Excerpt for the atom fixture entry.",
-      url: "https://example.test/atom/entry-one",
+      url: `https://example.test/atom/entry-one-${source.id}`,
     });
   });
 
   it("re-running ingestSource against the same feed inserts zero duplicates", async () => {
-    const source = makeSource({
-      name: "Rerun Fixture Source",
-      feed_url: `${baseUrl}/rss-feed.xml`,
-    });
+    const source = makeSource({ name: "Rerun Fixture Source" });
     await insertSource(source);
 
     const firstRun = await ingestSource(getPool(), source);
@@ -204,10 +229,7 @@ describe.skipIf(!databaseUrl)("@learn-ai/ingestion integration", () => {
   });
 
   it("a malformed feed marks failure, records zero candidates, and does not throw", async () => {
-    const source = makeSource({
-      name: "Malformed Fixture Source",
-      feed_url: `${baseUrl}/malformed-feed.xml`,
-    });
+    const source = makeSource({ name: "Malformed Fixture Source", fixtureKind: "malformed" });
     await insertSource(source);
 
     const result = await ingestSource(getPool(), source);
@@ -223,10 +245,7 @@ describe.skipIf(!databaseUrl)("@learn-ai/ingestion integration", () => {
   });
 
   it(`the ${MAX_CONSECUTIVE_FAILURES}th consecutive failure auto-deactivates the source`, async () => {
-    const source = makeSource({
-      name: "Always Failing Fixture Source",
-      feed_url: `${baseUrl}/not-found.xml`,
-    });
+    const source = makeSource({ name: "Always Failing Fixture Source", fixtureKind: "not-found" });
     await insertSource(source);
 
     let current = source;
@@ -244,10 +263,7 @@ describe.skipIf(!databaseUrl)("@learn-ai/ingestion integration", () => {
   });
 
   it("a success after failures resets consecutive_failures to zero", async () => {
-    const source = makeSource({
-      name: "Recovering Fixture Source",
-      feed_url: `${baseUrl}/not-found.xml`,
-    });
+    const source = makeSource({ name: "Recovering Fixture Source", fixtureKind: "not-found" });
     await insertSource(source);
 
     await ingestSource(getPool(), source);
@@ -258,7 +274,7 @@ describe.skipIf(!databaseUrl)("@learn-ai/ingestion integration", () => {
     // and confirm the next successful poll clears the failure count.
     await getPool().query(`UPDATE content_sources SET feed_url = $2 WHERE id = $1`, [
       source.id,
-      `${baseUrl}/rss-feed.xml`,
+      fixtureUrl("rss", source.id),
     ]);
     current = await fetchSource(source.id);
 
@@ -300,11 +316,8 @@ describe.skipIf(!databaseUrl)("@learn-ai/ingestion integration", () => {
   });
 
   it("runIngestion isolates a bad feed's failure from the rest of the batch", async () => {
-    const good = makeSource({ name: "Batch Good Source", feed_url: `${baseUrl}/rss-feed.xml` });
-    const bad = makeSource({
-      name: "Batch Malformed Source",
-      feed_url: `${baseUrl}/malformed-feed.xml`,
-    });
+    const good = makeSource({ name: "Batch Good Source" });
+    const bad = makeSource({ name: "Batch Malformed Source", fixtureKind: "malformed" });
     for (const s of [good, bad]) {
       await insertSource(s);
     }

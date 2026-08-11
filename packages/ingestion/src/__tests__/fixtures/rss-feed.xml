@@ -6,14 +6,14 @@
     <description>A fixture feed for T07 integration tests</description>
     <item>
       <title>First Fixture Article</title>
-      <link>https://Example.test/articles/first-article/?utm_source=newsletter&amp;utm_medium=email&amp;ref=homepage</link>
+      <link>https://Example.test/articles/first-article-__TOKEN__/?utm_source=newsletter&amp;utm_medium=email&amp;ref=homepage</link>
       <guid>urn:fixture:first-article</guid>
       <pubDate>Mon, 10 Aug 2026 09:00:00 GMT</pubDate>
       <description>Excerpt for the first fixture article.</description>
     </item>
     <item>
       <title>Second Fixture Article</title>
-      <link>https://example.test/articles/second-article</link>
+      <link>https://example.test/articles/second-article-__TOKEN__</link>
       <guid>urn:fixture:second-article</guid>
       <pubDate>Tue, 11 Aug 2026 09:00:00 GMT</pubDate>
       <description>Excerpt for the second fixture article.</description>
