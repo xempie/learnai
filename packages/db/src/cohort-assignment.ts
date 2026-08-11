@@ -41,7 +41,12 @@
 // for the deriveName fallback path, exactly as the spec's own prose
 // describes ("auto-created organisations WITH DERIVED NAMES are flagged").
 import { classifyEmail, normaliseEmail } from "@learn-ai/cohort";
-import { getPool, newId } from "./client.js";
+// Extensionless specifier deliberately (see the same note in index.ts):
+// apps/web's Turbopack build now reaches this file through
+// index.ts -> cohort-assignment.ts -> client, and Turbopack's resolver for
+// a bundled-by-source workspace package only resolves the extensionless
+// form for this hop, the same way it does for index.ts's own re-exports.
+import { getPool, newId } from "./client";
 import type { Pool } from "pg";
 
 export interface CohortAssignment {

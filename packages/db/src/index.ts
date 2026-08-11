@@ -7,7 +7,10 @@
 // an external package it isn't fully transpiling through its own
 // resolver. `index.ts` is the only file apps/web ever imports from this
 // package, so this is the one specifier that needs to satisfy both
-// resolvers.
+// resolvers — and (T05) the same rule now applies transitively to every
+// file index.ts re-exports from (cohort-assignment.ts's own "./client"
+// import), since Turbopack follows the whole chain, not just the entry
+// point.
 export { createPool, getPool, newId } from "./client";
 export { assignCohort } from "./cohort-assignment";
 export type { CohortAssignment } from "./cohort-assignment";
