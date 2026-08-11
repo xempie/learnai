@@ -54,9 +54,11 @@ the system of record for identity; `accounts` / `sessions` / `verification_token
 `auth_credentials` (packages/db migration `1755100000000_auth-adapter-tables`) hold
 credentials/session material only and always FK to `users(id)`.
 
-Signup does **not** yet run real cohort assignment (T05) — every new user is
-`cohort_track = 'individual'` until then. Verification emails are logged to the server console
-in dev (`apps/web/src/lib/auth/mailer.ts`); T19 swaps in SES.
+Signup runs real cohort assignment (T05, §4.1) synchronously before the `users` row is inserted
+— see [Cohort assignment](#cohort-assignment) below. A disposable-domain email is rejected with
+`422 DISPOSABLE_EMAIL` before any row is written; every other outcome sets `cohort_track` and
+`organisation_id` on the new row. Verification emails are logged to the server console in dev
+(`apps/web/src/lib/auth/mailer.ts`); T19 swaps in SES.
 
 | Endpoint                       | Purpose                                                     |
 | ------------------------------ | ----------------------------------------------------------- |
@@ -72,18 +74,30 @@ freeMailDomains, disposableDomains })` normalises and validates an address, redu
 a registrable domain via a real Public Suffix List (the `tldts` package — `mail.student.mq.edu.au`
 → `mq.edu.au`), and returns a discriminated union (`invalid` | `free_mail` | `disposable` |
 `organisation`). `deriveName`/`inferKind` implement the spec's fallback naming/kind rules for
-domains with no `known_institutions` match. The DB-aware find-or-create against
-`organisations`/`organisation_domains` (wiring this into signup, auto-creating orgs,
-`known_institutions` lookup) is T05 — not yet built; every user is still `cohort_track =
-'individual'` until then.
+domains with no `known_institutions` match.
 
-**Note:** the real Public Suffix List's `gov.au` entry is a plain suffix (no state-level
-wildcard), so `health.nsw.gov.au` and `education.nsw.gov.au` both reduce to the _same_
-registrable domain, `nsw.gov.au` — per the spec's own reduction rule (suffix + one label), not a
-bug in this package. The §4.1 `known_institutions` seed table (`packages/db`) keys those two
-hostnames as if they were distinct registrable domains; T05 will need to resolve this (e.g. by
-re-keying the seed to `nsw.gov.au`, or matching on full hostname before falling back to
-registrable-domain lookup) before that seed data behaves as intended.
+The DB-aware controller layer — find-or-create against `organisations`/`organisation_domains`,
+wiring into signup, auto-creating orgs — is `packages/db/src/cohort-assignment.ts`
+(`assignCohort`, T05). It never throws: any unexpected error (DB unavailable, an unexpected
+constraint violation) is caught, logged, and resolved as the `individual` track, per §4's
+NON-NEGOTIABLE "cohort assignment must never fail a signup". The one non-error outcome,
+`rejected: 'disposable'`, is the caller's (signup route's) job to turn into a 422.
+
+**Known-institutions longest-suffix match (T05 deviation, documented in code):** the real Public
+Suffix List's `gov.au` entry is a plain suffix (no state-level wildcard), so
+`health.nsw.gov.au` and `education.nsw.gov.au` both reduce to the _same_ registrable domain,
+`nsw.gov.au` — per the spec's own reduction rule (suffix + one label), not a bug in
+`packages/cohort`. `assignCohort` resolves this by checking `known_institutions` for the longest
+matching suffix of the _full, unreduced_ host before running §4.1 step 3's PSL reduction; a match
+supplies the organisation's domain/name/kind directly (not flagged `auto_created`, since the name
+is already authoritative) and a non-match falls through to the unmodified §4.1 steps 3–6.
+
+Organisation find-or-create is concurrency-safe: two simultaneous signups from the same brand-new
+domain create exactly one organisation (`INSERT ... ON CONFLICT (primary_domain) DO NOTHING` +
+re-select, plus slug dedupe retried on a genuine `organisations_slug_key` collision).
+`organisations.member_count` is maintained by the recount-on-write trigger added in T02
+(`trg_users_member_count` — fires on `users` insert, `UPDATE OF organisation_id`, and delete);
+T05 verified it rather than re-implementing it.
 
 Coverage for this package is enforced separately: `vitest.config.ts` sets `coverage.enabled:
 true` with a threshold scoped to `packages/cohort/src/**` (branches ≥ 95%, per §11), so `pnpm

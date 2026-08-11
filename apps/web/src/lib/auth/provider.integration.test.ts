@@ -66,6 +66,46 @@ describe.skipIf(!databaseUrl)("AuthProvider — DB-backed behaviour (§12 T03 ac
     expect(credRows[0]?.password_hash).not.toBe("correct horse battery staple");
   });
 
+  it("§4.1 step 5 / T05: a disposable-domain email is rejected with 422 and no user row is created", async () => {
+    const email = `t05-disposable-${newId()}@mailinator.com`;
+
+    // This test's file runs independently of packages/db's seed-script
+    // test (file execution order across packages is not something this
+    // test should depend on) — insert the one row it needs directly,
+    // idempotently, rather than assuming @learn-ai/db's seed() has already
+    // run elsewhere in this CI job.
+    await getPool().query(
+      `INSERT INTO disposable_domains (domain) VALUES ('mailinator.com') ON CONFLICT (domain) DO NOTHING`,
+    );
+
+    await expect(authProvider.signUp(email, "correct horse battery staple")).rejects.toMatchObject({
+      status: 422,
+      code: "DISPOSABLE_EMAIL",
+    });
+
+    const { rows } = await getPool().query(`SELECT id FROM users WHERE email = $1`, [email]);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("§4.1/T05: signUp with an organisation-domain email sets cohort_track and organisation_id", async () => {
+    const domain = `t05-provider-${newId()}.com.au`;
+    const email = `member@${domain}`;
+    const { userId } = await authProvider.signUp(email, "correct horse battery staple");
+
+    const { rows } = await getPool().query<{
+      cohort_track: string;
+      organisation_id: string | null;
+    }>(`SELECT cohort_track, organisation_id FROM users WHERE id = $1`, [userId]);
+    expect(rows[0]?.cohort_track).toBe("organisation");
+    expect(rows[0]?.organisation_id).not.toBeNull();
+
+    const { rows: orgRows } = await getPool().query<{ auto_created: boolean }>(
+      `SELECT auto_created FROM organisations WHERE id = $1`,
+      [rows[0]?.organisation_id],
+    );
+    expect(orgRows[0]?.auto_created).toBe(true);
+  });
+
   it("verify flips users.email_verified_at", async () => {
     const email = `t03-verify-${newId()}@example.test`;
     const { userId } = await authProvider.signUp(email, "correct horse battery staple");

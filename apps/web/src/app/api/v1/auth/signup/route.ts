@@ -13,9 +13,11 @@ interface SignupRequestBody {
  *
  * Creates a `users` row (via `AuthProvider.signUp`, which uses
  * packages/db's shared pool) and triggers verification-email delivery.
- * Cohort assignment is NOT run here — §5's real classification lands in
- * T05; every new user is `cohort_track = 'individual'` until then (see the
- * comment in `lib/auth/provider.ts`).
+ * §4.1 cohort assignment (T05) runs synchronously inside `signUp` before
+ * the row is inserted — see `packages/db/src/cohort-assignment.ts` and the
+ * comment in `lib/auth/provider.ts`. A disposable-domain email surfaces
+ * here as a 422 `DISPOSABLE_EMAIL` `ApiError`, same as any other signup
+ * validation failure.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {

@@ -9,3 +9,5 @@
 // package, so this is the one specifier that needs to satisfy both
 // resolvers.
 export { createPool, getPool, newId } from "./client";
+export { assignCohort } from "./cohort-assignment";
+export type { CohortAssignment } from "./cohort-assignment";

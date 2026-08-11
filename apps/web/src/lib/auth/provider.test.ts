@@ -2,9 +2,11 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const queryMock = vi.fn();
+const assignCohortMock = vi.fn();
 vi.mock("@learn-ai/db", () => ({
   getPool: () => ({ query: queryMock }),
   newId: () => "test-generated-id",
+  assignCohort: (...args: unknown[]) => assignCohortMock(...args),
 }));
 
 const getTokenMock = vi.fn();
@@ -136,6 +138,7 @@ describe("AuthProvider guard behaviour (§2.2)", () => {
 describe("AuthProvider.signUp validation (§2.2)", () => {
   beforeEach(() => {
     queryMock.mockReset();
+    assignCohortMock.mockReset();
   });
 
   it("rejects an invalid email before touching the database", async () => {
@@ -159,5 +162,52 @@ describe("AuthProvider.signUp validation (§2.2)", () => {
     await expect(
       authProvider.signUp("dup@example.com", "longenoughpassword"),
     ).rejects.toMatchObject({ status: 422, code: "EMAIL_ALREADY_REGISTERED" });
+    expect(assignCohortMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("AuthProvider.signUp — §4.1/T05 cohort assignment wiring", () => {
+  beforeEach(() => {
+    queryMock.mockReset();
+    assignCohortMock.mockReset();
+  });
+
+  it("passes assignCohort's result through to the INSERT INTO users statement", async () => {
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // duplicate-email check
+    assignCohortMock.mockResolvedValueOnce({
+      organisationId: "org-1",
+      cohortTrack: "organisation",
+    });
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 }); // INSERT INTO users
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 }); // INSERT INTO auth_credentials
+
+    await authProvider.signUp("member@newco.com.au", "longenoughpassword");
+
+    expect(assignCohortMock).toHaveBeenCalledWith("member@newco.com.au");
+    const insertUsersCall = queryMock.mock.calls[1] as [string, unknown[]];
+    expect(insertUsersCall[0]).toContain("INSERT INTO users");
+    expect(insertUsersCall[1]).toEqual([
+      "test-generated-id",
+      "member@newco.com.au",
+      "newco.com.au",
+      "organisation",
+      "org-1",
+    ]);
+  });
+
+  it("rejects with 422 DISPOSABLE_EMAIL when assignCohort flags the domain, without inserting a user row", async () => {
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // duplicate-email check
+    assignCohortMock.mockResolvedValueOnce({
+      organisationId: null,
+      cohortTrack: "individual",
+      rejected: "disposable",
+    });
+
+    await expect(
+      authProvider.signUp("throwaway@mailinator.com", "longenoughpassword"),
+    ).rejects.toMatchObject({ status: 422, code: "DISPOSABLE_EMAIL" });
+
+    // Only the duplicate-email SELECT ran — no INSERT INTO users.
+    expect(queryMock).toHaveBeenCalledTimes(1);
   });
 });
