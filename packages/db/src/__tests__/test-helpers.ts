@@ -22,13 +22,20 @@ export function runMigrate(direction: "up" | "down"): void {
     "bin",
     "node-pg-migrate.js",
   );
-  execFileSync(
-    process.execPath,
-    [bin, direction, "--migrations-dir", path.join(packageRoot, "migrations")],
-    {
-      cwd: packageRoot,
-      stdio: "pipe",
-      env: process.env,
-    },
-  );
+  const args = [bin, direction, "--migrations-dir", path.join(packageRoot, "migrations")];
+  if (direction === "down") {
+    // node-pg-migrate's `down` rolls back only ONE migration by default.
+    // This helper's callers all want a full teardown ("start from a clean
+    // slate" / "drops everything cleanly") regardless of how many
+    // migration files exist — pass an explicit count comfortably above
+    // any realistic number of migrations. (This bit locally when this
+    // repo had only one migration file; T03 added a second and exposed it
+    // — a bare `down` was silently leaving the first migration applied.)
+    args.push("1000");
+  }
+  execFileSync(process.execPath, args, {
+    cwd: packageRoot,
+    stdio: "pipe",
+    env: process.env,
+  });
 }
