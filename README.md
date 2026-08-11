@@ -187,6 +187,62 @@ these simply accumulate `consecutive_failures` and auto-deactivate rather than b
 ingestion of the working sources; still worth flagging for the founder review the seed list
 already requires (see [Database](#database) above).
 
+## LLM client abstraction
+
+`packages/llm` (`@learn-ai/llm`, T08) implements the §2.3 `LlmClient` contract — `complete(req):
+Promise<LlmResponse>` — with two interchangeable implementations, `BedrockLlmClient` and
+`AnthropicLlmClient`. Every caller (T09 triage, T10 draft, ...) codes against `LlmClient` and
+`createLlmClient({ agentName, executionArn?, pool })`, which picks the concrete class from
+`LLM_PROVIDER` (`bedrock` | `anthropic`, default `bedrock`) — swapping providers is an env
+change, not a code change.
+
+**Shared orchestration** (`BaseLlmClient`, both clients extend it): each provider only
+implements `invoke()` (its own request/response mapping) and `isRetryable()` (its own
+429/throttling/5xx classification); everything else is common —
+
+- **Retry with backoff** (`retry.ts`): 2 retries (3 attempts total) with exponential delay,
+  only for errors the subclass classifies as retryable (Bedrock: `ThrottlingException`,
+  `ServiceUnavailableException`, `ModelTimeoutException`, `ModelNotReadyException`,
+  `InternalServerException`, or `$metadata.httpStatusCode` 429/5xx; Anthropic: `error.status`
+  429 or ≥500). A non-retryable error (e.g. a 400) fails on the first attempt.
+- **JSON mode** (`json.ts`, wired in `base-client.ts`): `responseFormat: 'json'` strips a
+  single wrapping markdown fence, then `JSON.parse`s the result. Malformed JSON retries
+  **once** with the model's own (invalid) reply echoed back plus one corrective user message
+  asking for valid JSON only; still-malformed on that retry throws `LlmJsonError` — per §12/T08,
+  "malformed JSON responses retry once then fail cleanly." Token counts from both attempts are
+  summed into the final `LlmResponse` when the retry succeeds.
+- **`agent_runs` logging** (`agent-runs.ts`, §3.7): every `complete()` call — success or
+  failure — writes exactly one row: `agent_name`, `execution_arn`, `model_id`, token counts,
+  `latency_ms`, `cost_usd` (from `pricing.ts`'s per-model $/1M-token table, founder-updatable;
+  `null` for an unpriced model rather than throwing), `status` (`ok`/`error`), and `error`
+  (truncated to 2000 chars).
+
+**Bedrock** (`bedrock-client.ts`) calls the Converse API (`@aws-sdk/client-bedrock-runtime`).
+Region defaults to `BEDROCK_REGION`/`ap-southeast-2`; model defaults to
+`BEDROCK_MODEL_ID`/`anthropic.claude-3-5-haiku-20241022-v1:0` — a cheap default, founder-tunable
+via the env var without a deploy. **Anthropic** (`anthropic-client.ts`) calls
+`@anthropic-ai/sdk` directly. Region/model default to `ANTHROPIC_MODEL_ID`/`claude-sonnet-5` and
+require `ANTHROPIC_API_KEY` (only when `LLM_PROVIDER=anthropic`).
+
+**Transport seam:** both clients take an injectable `transport` — the actual
+`BedrockRuntimeClient.send(new ConverseCommand(...))` / `client.messages.create(...)` call —
+constructed automatically when omitted. This is what lets one shared contract suite
+(`src/__tests__/contract.ts`) run against both implementations with faked transports (per
+§12/T08: "both implementations pass the same contract test suite"): happy path, token
+accounting, retry-on-throttle, retry-exhaustion, non-retryable-error, fence-stripping,
+malformed-JSON-retry-then-succeed, malformed-JSON-retry-then-fail, and one-row-per-call — all
+assert against an in-memory `FakePool` rather than a live database, so they run locally with no
+`DATABASE_URL`. The one true database write — a real `agent_runs` row landing in the migrated
+§3.7 schema, with correct column types (`NUMERIC` `cost_usd`, `INTEGER` token counts) — is
+covered once in `agent-runs.integration.test.ts`, skipped when `DATABASE_URL` is unset (same
+pattern as `packages/db`/`packages/ingestion`'s DB-backed tests).
+
+**Live Bedrock smoke check** (report-only, not part of the test suite):
+`pnpm --filter @learn-ai/llm run smoke:bedrock` attempts one real 20-token Converse call against
+the configured default model and prints the result (or the exact AWS error — e.g.
+`AccessDeniedException` when Bedrock model access hasn't been granted in the console yet — as a
+founder checkpoint, without failing anything).
+
 ## Scripts
 
 Run from the repo root; each fans out across all workspaces (`apps/*`, `packages/*`).
@@ -209,6 +265,7 @@ apps/web           Next.js App Router frontend (TypeScript, Tailwind)
 packages/db        Schema, migrations, seeds, pg pool client (@learn-ai/db)
 packages/cohort    Domain parsing / cohort classification, pure (@learn-ai/cohort)
 packages/ingestion RSS/Atom polling, URL dedupe, source_candidates writer (@learn-ai/ingestion)
+packages/llm        LlmClient abstraction — Bedrock + Anthropic, agent_runs logging (@learn-ai/llm)
 ```
 
 ## Build spec
