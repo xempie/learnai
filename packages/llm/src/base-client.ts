@@ -69,7 +69,7 @@ export abstract class BaseLlmClient implements LlmClient {
     try {
       const result = await this.completeWithJsonHandling(req);
       const latencyMs = Date.now() - start;
-      await writeAgentRun(this.pool, {
+      const agentRunId = await writeAgentRun(this.pool, {
         agentName: this.agentName,
         executionArn: this.executionArn,
         modelId: result.modelId,
@@ -79,7 +79,7 @@ export abstract class BaseLlmClient implements LlmClient {
         costUsd: computeCostUsd(result.modelId, result.inputTokens, result.outputTokens),
         status: "ok",
       });
-      return { ...result, latencyMs };
+      return { ...result, latencyMs, agentRunId };
     } catch (err) {
       const latencyMs = Date.now() - start;
       await writeAgentRun(this.pool, {

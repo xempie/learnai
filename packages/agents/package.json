@@ -7,7 +7,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "smoke:triage": "dotenv -e ../../.env.local -- tsx src/smoke-triage.ts"
+    "smoke:triage": "dotenv -e ../../.env.local -- tsx src/smoke-triage.ts",
+    "smoke:draft": "dotenv -e ../../.env.local -- tsx src/smoke-draft.ts"
   },
   "dependencies": {
     "@learn-ai/db": "workspace:*",

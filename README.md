@@ -215,7 +215,10 @@ implements `invoke()` (its own request/response mapping) and `isRetryable()` (it
   failure — writes exactly one row: `agent_name`, `execution_arn`, `model_id`, token counts,
   `latency_ms`, `cost_usd` (from `pricing.ts`'s per-model $/1M-token table, founder-updatable;
   `null` for an unpriced model rather than throwing), `status` (`ok`/`error`), and `error`
-  (truncated to 2000 chars).
+  (truncated to 2000 chars). `writeAgentRun` generates the row's `id` application-side (before the
+  INSERT) and returns it; on the success path, `LlmClient.complete()` surfaces that same id as
+  `LlmResponse.agentRunId` (a small T08-compatible addition made during T10) so a caller like the
+  draft agent can persist `content_items.agent_run_id` without a second lookup.
 
 **Bedrock** (`bedrock-client.ts`) calls the Converse API (`@aws-sdk/client-bedrock-runtime`).
 Region defaults to `BEDROCK_REGION`/`ap-southeast-2`; model defaults to
@@ -246,7 +249,8 @@ founder checkpoint, without failing anything).
 ## Triage agent
 
 `packages/agents` (`@learn-ai/agents`, T09) implements the §5.2 triage agent and the §5.4
-Tier-3-exclusion building block for `SelectTopN`. This package will also hold T10's draft agent.
+Tier-3-exclusion building block for `SelectTopN`. This package also holds T10's draft agent (see
+[Draft agent](#draft-agent) below).
 
 **`TRIAGE_SYSTEM_PROMPT`** (`src/prompts/triage-prompt.ts`) is the §5.2 system prompt copied
 verbatim from `LEARN_AI_V1_BUILD_SPEC.md` — NON-NEGOTIABLE per AGENTS.md/§5, changes require
@@ -291,6 +295,86 @@ other DB-backed suite in this repo.
 `pnpm --filter @learn-ai/agents run smoke:triage` runs one real triage batch of 3 tiny fixture
 candidates through Bedrock and prints the scores/reasons/verticals it returned.
 
+## Draft agent
+
+`packages/agents` (`@learn-ai/agents`, T10) implements the §5.3 draft agent, §5.4's vertical
+rotation rule, and §5.1's `PersistDrafts` stage.
+
+**`DRAFT_SYSTEM_PROMPT`** (`src/prompts/draft-prompt.ts`) is the §5.3 system prompt copied
+verbatim from `LEARN_AI_V1_BUILD_SPEC.md` — same NON-NEGOTIABLE / independent-re-extraction guard
+test pattern as T09's `TRIAGE_SYSTEM_PROMPT` (`src/__tests__/draft-prompt.spec.test.ts`).
+
+**`draftItem({ candidate, kind, reviewerNotes? }, client)`** drafts ONE `content_items`-shaped item
+(`kind` is `'news' | 'technique' | 'video'`) from one selected candidate — `candidate` is the same
+shape T09's `SelectedCandidate` already carries (title/url/excerpt/raw + source tier/vertical), so
+T11's orchestration can hand one straight through. The system prompt's response is one of two
+shapes, validated with zod:
+
+- **Success** — `{"title","summary"(<=200 chars),"body_md","vertical","source_url"}`. A `summary`
+  that parses but is over 200 chars, or a response that doesn't match this shape at all, gets
+  exactly ONE regenerate attempt (an explicit corrective follow-up message, echoing the model's own
+  reply back — the same "one corrective retry" spirit as T08's JSON-mode handling, applied here to a
+  business-rule violation rather than invalid JSON syntax); still invalid after that throws
+  `DraftValidationError` — "fails cleanly", never an open-ended loop.
+- **Refusal** — `{"error":"insufficient_source","detail":"..."}`. Returned as a **typed** `DraftResult`
+  (`{ ok: false, error, detail }`), never thrown — a thin source is an expected, routine outcome.
+
+On success, `draftItem` slugifies the title (`@learn-ai/db`'s `slugify`), sets
+`status: 'in_review'`, `author_kind: 'agent'`, `is_premium: false`, `video_url: null` (the script
+lives in `body_md` for every kind, including `video` — no recording exists yet at draft time), and
+carries `source_id`/`source_tier` through from the candidate. `agent_run_id` comes from
+`LlmResponse.agentRunId` — a small T08-compatible addition (`writeAgentRun` already generates the
+`agent_runs.id` before its INSERT; `BaseLlmClient.complete()` now returns it on the success path)
+so a drafted item can point straight at the `agent_runs` row that produced it. **Slug uniqueness is
+deliberately NOT resolved here** — `draftItem` runs once per candidate (§5.1's `DraftAgent` is a
+`Map over selected`, so one call never sees its sibling items); only `persistDrafts`, which holds
+the DB pool and inserts the whole batch, has the visibility to dedupe against both existing rows
+and same-batch siblings.
+
+**`persistDrafts(items, editionDate, pool)`** finds-or-creates the `editions` row for
+`editionDate` (new rows start `'in_review'`; an existing `'planning'` row is moved to `'in_review'`;
+anything already past `'planning'` is left alone) and inserts every item with `status='in_review'`
+**hardcoded in the SQL text**, never a bound parameter — the pipeline rule (§5.1) is that drafts
+enter `in_review` only, and this makes it impossible for a caller to slip `'published'` through this
+path even though the `published_needs_approval` CHECK would technically allow it with approvals
+set. Each item's slug is deduped against real `content_items` rows (and its own siblings, inserted
+earlier in the same call) with a numeric `-2`, `-3`, ... suffix on collision.
+`collectDraftedItems(results)` is the small connective helper: filters a batch of `DraftResult`s
+down to the successful ones, so a refusal is dropped before `persistDrafts` ever sees it —
+"typed refusal, nothing inserted."
+
+**`pickRotationVertical(recentEditions)`** is §5.4's vertical rotation as a pure, deterministic
+function of publishing history (no RNG): `recentEditions` is the vertical picked for each previous
+publishing day, oldest first, and the function returns the next day's target vertical. Two rules,
+checked in order:
+
+1. **Health** ("at most 1 in 10"): a fixed once-per-10-day slot (day index `9, 19, 29, ...`) rather
+   than an ordinary member of the 5-day rotation below — folding it into the same deficit-based
+   quota would make it win far more often than 1-in-10, since its target rate (0.1/day) is dwarfed
+   by general's (0.4/day). Skipped if health already appeared in the trailing 9 days.
+2. **Otherwise**: the four §5.4 buckets (`general` / `teaching`-or-`learning` combined / `marketing`
+   / `management`) each have a target count over the trailing 5 days (this day + the last 4);
+   whichever bucket is furthest behind its target wins, ties breaking `general` first. Applied
+   repeatedly from an empty history this reproduces an exact period-5 cycle, which has the property
+   that **any** 5 consecutive picks (not just picks aligned to day 0) contain exactly the target
+   multiset — verified directly in `rotation.test.ts`. `teaching` vs `learning` within the combined
+   bucket goes to whichever appeared less often in the trailing window (tie → `teaching`).
+
+**Tests**: `draft-item.test.ts` covers all three `kind`s producing a valid item, the refusal path on
+a canned `insufficient_source` response (typed result, one LLM call, no regenerate), the
+summary-too-long regenerate-then-succeed and regenerate-then-`DraftValidationError` paths, and the
+same for a malformed-shape response. `rotation.test.ts` simulates 10/20/30-day publishing histories
+and checks the exact deterministic sequence, the "any 5-day rolling window" quota property, and the
+"at most 1 in 10" health property — the §12/T10 acceptance's "rotation honoured over a simulated
+10-day window." `persist-drafts.test.ts` (in-memory `FakeDraftPool`) and
+`persist-drafts.integration.test.ts` (real Postgres, skip-locally/run-in-CI) cover edition
+find-or-create, the `planning`→`in_review` transition, slug dedupe, and that nothing is ever
+inserted as `'published'`.
+
+**Live Bedrock smoke check** (report-only, not part of the test suite):
+`pnpm --filter @learn-ai/agents run smoke:draft` drafts one real `kind=technique` item through
+Bedrock from a small fixture candidate and prints the title/summary it produced.
+
 ## Scripts
 
 Run from the repo root; each fans out across all workspaces (`apps/*`, `packages/*`).
@@ -314,7 +398,7 @@ packages/db        Schema, migrations, seeds, pg pool client (@learn-ai/db)
 packages/cohort    Domain parsing / cohort classification, pure (@learn-ai/cohort)
 packages/ingestion RSS/Atom polling, URL dedupe, source_candidates writer (@learn-ai/ingestion)
 packages/llm        LlmClient abstraction — Bedrock + Anthropic, agent_runs logging (@learn-ai/llm)
-packages/agents     Triage agent, Tier-3-exclusion SelectTopN building block (@learn-ai/agents)
+packages/agents     Triage + draft agents, SelectTopN/PersistDrafts building blocks (@learn-ai/agents)
 ```
 
 ## Build spec

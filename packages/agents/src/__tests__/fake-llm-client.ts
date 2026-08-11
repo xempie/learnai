@@ -38,6 +38,7 @@ export class FakeLlmClient implements LlmClient {
       outputTokens: 10,
       modelId: "fake-model",
       latencyMs: 1,
+      agentRunId: `fake-agent-run-${this.cursor}`,
     };
   }
 }

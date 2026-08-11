@@ -22,14 +22,18 @@ export interface AgentRunInput {
  * the table. */
 const ERROR_TRUNCATE_LENGTH = 2000;
 
-export async function writeAgentRun(pool: Pool, input: AgentRunInput): Promise<void> {
+/** Returns the generated `agent_runs.id` (see `LlmResponse.agentRunId`) —
+ * generated application-side before the INSERT, so it is available to
+ * return regardless of what the DB round-trip does. */
+export async function writeAgentRun(pool: Pool, input: AgentRunInput): Promise<string> {
+  const id = newId();
   await pool.query(
     `INSERT INTO agent_runs
        (id, agent_name, execution_arn, model_id, input_tokens, output_tokens,
         latency_ms, cost_usd, status, error)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
-      newId(),
+      id,
       input.agentName,
       input.executionArn ?? null,
       input.modelId,
@@ -41,4 +45,5 @@ export async function writeAgentRun(pool: Pool, input: AgentRunInput): Promise<v
       input.error ? input.error.slice(0, ERROR_TRUNCATE_LENGTH) : null,
     ],
   );
+  return id;
 }

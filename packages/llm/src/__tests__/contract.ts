@@ -65,6 +65,22 @@ export function describeLlmClientContract(harness: ContractHarness): void {
       expect(callCount()).toBe(1);
     });
 
+    it("returns the agent_runs row id it just wrote as agentRunId", async () => {
+      const { client, pool } = harness.makeClient([
+        { kind: "text", text: "hello world", inputTokens: 10, outputTokens: 5 },
+      ]);
+
+      const res = await client.complete({
+        system: "sys",
+        messages: [{ role: "user", content: "hi" }],
+        maxTokens: 100,
+      });
+
+      expect(res.agentRunId).toBeTruthy();
+      expect(pool.agentRuns).toHaveLength(1);
+      expect(res.agentRunId).toBe(pool.agentRuns[0]!.id);
+    });
+
     it("token accounting: agent_runs row records the exact token counts and a computed cost", async () => {
       const { client, pool } = harness.makeClient([
         { kind: "text", text: "ok", inputTokens: 1000, outputTokens: 2000 },
