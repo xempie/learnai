@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate } from "./format";
+import { formatDate, formatEditionDate } from "./format";
 
 describe("formatDate", () => {
   const cases: Array<{ name: string; input: string | Date; expected: string }> = [
@@ -25,5 +25,22 @@ describe("formatDate", () => {
 
   it.each(cases)("formats $name", ({ input, expected }) => {
     expect(formatDate(input)).toBe(expected);
+  });
+});
+
+describe("formatEditionDate", () => {
+  const cases: Array<{ name: string; input: string | Date; expected: string }> = [
+    { name: "known weekday", input: "2026-08-12", expected: "Wednesday 12 August 2026" },
+    { name: "another known weekday", input: "2026-08-15", expected: "Saturday 15 August 2026" },
+    {
+      name: "Date instance",
+      input: new Date("2026-12-25T00:00:00Z"),
+      expected: "Friday 25 December 2026",
+    },
+    { name: "invalid string falls back gracefully", input: "not-a-date", expected: "Invalid date" },
+  ];
+
+  it.each(cases)("formats $name", ({ input, expected }) => {
+    expect(formatEditionDate(input)).toBe(expected);
   });
 });
