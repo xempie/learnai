@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Small, self-contained runtime image for the App Runner demo deploy
+  // (see /Dockerfile) — bundles only the traced production deps into
+  // .next/standalone rather than requiring node_modules in the image.
+  output: "standalone",
   // Avoid generating apps/web/AGENTS.md and apps/web/CLAUDE.md — the repo's
   // root AGENTS.md is the single source of truth for agent working rules.
   agentRules: false,

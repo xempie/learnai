@@ -1,0 +1,23 @@
+version: 0.2
+
+# Learn AI UI demo — cloud build via CodeBuild (local Docker is unavailable).
+# Expects these CodeBuild project environment variables:
+#   AWS_ACCOUNT_ID, AWS_REGION, ECR_REPO
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to ECR..."
+      - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      - IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO"
+      - IMAGE_TAG="$(date -u +%Y%m%d%H%M%S)"
+  build:
+    commands:
+      - echo "Building image..."
+      - docker build -t "$IMAGE_URI:latest" -t "$IMAGE_URI:$IMAGE_TAG" .
+  post_build:
+    commands:
+      - echo "Pushing image..."
+      - docker push "$IMAGE_URI:latest"
+      - docker push "$IMAGE_URI:$IMAGE_TAG"
+      - echo "Pushed $IMAGE_URI:latest and $IMAGE_URI:$IMAGE_TAG"
