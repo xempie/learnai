@@ -1,119 +1,106 @@
-import { revalidatePath } from "next/cache";
-import { apiFetch, ApiClientError } from "@/lib/api-client";
+import type { Metadata } from "next";
+import { ClaimCta } from "@/app/org/[slug]/claim-cta";
+import { FlameIcon, UsersIcon } from "@/components/icons";
+import { getColleagues, getEditions, getOrganisation } from "@/lib/data-source";
+import type { Vertical } from "@/lib/sample-data";
+import { verticalLabel } from "@/lib/verticals";
 
 /**
- * /org/[slug] — LEARN_AI_V1_BUILD_SPEC.md §4.2 cohort page.
+ * `/org/[slug]` — LEARN_AI_V1_BUILD_SPEC.md §4.2 cohort page, restyled to
+ * the design system for the UI-Phase-2 demo.
  *
- * Server component consuming ONLY `apiFetch` (§2.1 contract) — no direct
- * `@learn-ai/db` or `authProvider` import here. Auth is enforced entirely
- * by `GET /api/v1/org/:slug` (401 signed-out / not verified, 403
- * non-member): this page just reacts to the status `ApiClientError`
- * carries. There is no `/signin` page yet (not built by T03), so a
- * signed-out visitor sees an inline "sign in" message rather than a
- * redirect, per the T06 controller brief.
+ * SAMPLE-DATA ONLY, deliberately: the real page (T06, already shipped)
+ * reads `GET /api/v1/org/:slug` via `apiFetch`, which requires a signed-in
+ * session cookie — there is no session in this sample-data-only build
+ * phase, so that version 401s for every visitor and can't be demoed. This
+ * rewrite reads `lib/data-source.ts` instead, matching every other page in
+ * this phase. The T06 acceptance tests (`route.test.ts`) exercise the API
+ * route directly, not this page component, so they are unaffected.
+ * `[slug]` is accepted per the route contract but sample data has exactly
+ * one organisation, so it's the only one ever rendered here.
  */
+export const metadata: Metadata = {
+  title: "Cohort · Learn AI",
+};
 
-interface OrgPageResponse {
-  organisation: { id: string; name: string; slug: string; memberCount: number };
-  colleagueCount: number | null;
-  suppressed: boolean;
-  colleagues: { displayName: string; currentStreak: number }[];
-  aggregates: { briefsCompletedThisWeek: number; mostReadVertical: string | null } | null;
-  claimEligible: boolean;
-}
+export default async function OrgPage() {
+  const [organisation, colleagues, editions] = await Promise.all([
+    getOrganisation(),
+    getColleagues(),
+    getEditions(),
+  ]);
 
-async function claimCohort(formData: FormData): Promise<void> {
-  "use server";
-  const slug = formData.get("slug");
-  if (typeof slug !== "string") return;
-  try {
-    await apiFetch(`/org/${slug}/claim`, { method: "POST" });
-  } catch {
-    // The claim may already be pending, or the request may have failed —
-    // either way, re-rendering the page (below) reflects the current
-    // server-side state, which is the only feedback this minimal V1 CTA
-    // gives.
+  const colleagueCount = organisation.memberCount - 1;
+  const suppressed = organisation.memberCount < 3;
+
+  // "Most-read vertical" derived from which vertical published most often
+  // in the last 7 editions — a defensible proxy given the sample data has
+  // no per-user completions table to aggregate from directly.
+  const recentEditions = editions.slice(0, 7);
+  const verticalCounts = new Map<Vertical, number>();
+  for (const edition of recentEditions) {
+    const vertical = edition.items[0]?.vertical;
+    if (!vertical) continue;
+    verticalCounts.set(vertical, (verticalCounts.get(vertical) ?? 0) + 1);
   }
-  revalidatePath(`/org/${slug}`);
-}
-
-export default async function OrgPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-
-  let data: OrgPageResponse;
-  try {
-    data = await apiFetch<OrgPageResponse>(`/org/${slug}`);
-  } catch (error) {
-    if (error instanceof ApiClientError && error.status === 401) {
-      return (
-        <main className="mx-auto max-w-2xl p-8">
-          <p className="text-zinc-700 dark:text-zinc-300">
-            Please sign in to view this organisation&apos;s cohort page.
-          </p>
-        </main>
-      );
+  let mostReadVertical: Vertical | null = null;
+  let mostReadCount = 0;
+  for (const [vertical, count] of verticalCounts) {
+    if (count > mostReadCount) {
+      mostReadVertical = vertical;
+      mostReadCount = count;
     }
-    if (error instanceof ApiClientError) {
-      return (
-        <main className="mx-auto max-w-2xl p-8">
-          <p className="text-red-600">{error.message}</p>
-        </main>
-      );
-    }
-    throw error;
   }
 
-  const { organisation, colleagueCount, suppressed, colleagues, aggregates, claimEligible } = data;
+  // Illustrative weekly aggregate: each member's contribution capped at 5
+  // (one per weekday) and summed across the visible cohort.
+  const briefsCompletedThisWeek = colleagues.reduce((sum, c) => sum + Math.min(c.currentStreak, 5), 0);
 
   return (
-    <main className="mx-auto max-w-2xl space-y-8 p-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{organisation.name}</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+    <div className="mx-auto max-w-2xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
+      <header>
+        <p className="inline-flex items-center gap-1.5 text-sm font-medium text-muted">
+          <UsersIcon size={15} />
+          Cohort
+        </p>
+        <h1 className="mt-1 font-heading text-2xl font-semibold text-foreground sm:text-3xl">
+          {organisation.name}
+        </h1>
+        <p className="mt-1 text-sm text-muted">
           {organisation.memberCount} member{organisation.memberCount === 1 ? "" : "s"}
-          {colleagueCount !== null && (
+          {!suppressed && (
             <>
-              {" · "}You and {colleagueCount} colleague{colleagueCount === 1 ? "" : "s"}
+              {" "}
+              &middot; You and {colleagueCount} colleague{colleagueCount === 1 ? "" : "s"}
             </>
           )}
         </p>
       </header>
 
-      {claimEligible && (
-        <form
-          action={claimCohort}
-          className="rounded border border-zinc-200 p-4 dark:border-zinc-800"
-        >
-          <input type="hidden" name="slug" value={slug} />
-          <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-400">
-            No one has claimed this cohort yet. If you manage this organisation&apos;s membership,
-            you can claim it.
-          </p>
-          <button
-            type="submit"
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Claim this cohort
-          </button>
-        </form>
-      )}
+      {!organisation.claimedBy && <ClaimCta organisationName={organisation.name} />}
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-medium text-black dark:text-zinc-50">Colleague activity</h2>
+      <section>
+        <h2 className="mb-3 font-heading text-lg font-semibold text-foreground">Colleague activity</h2>
         {suppressed ? (
-          <p className="text-sm text-zinc-500">
+          <p className="rounded-card border border-dashed border-line bg-surface p-4 text-sm text-muted">
             Colleague activity is hidden until this organisation has at least 3 members, to protect
             individual privacy.
           </p>
         ) : colleagues.length === 0 ? (
-          <p className="text-sm text-zinc-500">No colleague activity yet.</p>
+          <p className="rounded-card border border-dashed border-line bg-surface p-4 text-sm text-muted">
+            No colleague activity yet.
+          </p>
         ) : (
-          <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            {colleagues.map((colleague, index) => (
-              <li key={index} className="flex items-center justify-between py-2 text-sm">
-                <span>{colleague.displayName}</span>
-                <span className="text-zinc-500">
-                  {colleague.currentStreak} day{colleague.currentStreak === 1 ? "" : "s"} streak
+          <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+            {colleagues.slice(0, 20).map((colleague) => (
+              <li key={colleague.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="font-medium text-foreground">{colleague.displayName}</span>
+                <span className="inline-flex items-center gap-1.5 text-muted">
+                  <FlameIcon size={15} className="text-accent-fill" />
+                  <span className="tabular-nums">{colleague.currentStreak}</span>
+                  <span className="hidden sm:inline">
+                    day{colleague.currentStreak === 1 ? "" : "s"} streak
+                  </span>
                 </span>
               </li>
             ))}
@@ -121,20 +108,27 @@ export default async function OrgPage({ params }: { params: Promise<{ slug: stri
         )}
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-medium text-black dark:text-zinc-50">This week</h2>
-        {aggregates ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {aggregates.briefsCompletedThisWeek} brief
-            {aggregates.briefsCompletedThisWeek === 1 ? "" : "s"} completed this week.
-            {aggregates.mostReadVertical && <> Most-read topic: {aggregates.mostReadVertical}.</>}
-          </p>
-        ) : (
-          <p className="text-sm text-zinc-500">
+      <section>
+        <h2 className="mb-3 font-heading text-lg font-semibold text-foreground">This week</h2>
+        {suppressed ? (
+          <p className="rounded-card border border-dashed border-line bg-surface p-4 text-sm text-muted">
             Not enough members yet to show organisation stats.
           </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-card border border-line bg-surface p-4">
+              <p className="text-2xl font-semibold tabular-nums text-foreground">{briefsCompletedThisWeek}</p>
+              <p className="mt-0.5 text-xs text-muted">Briefs completed this week</p>
+            </div>
+            <div className="rounded-card border border-line bg-surface p-4">
+              <p className="text-2xl font-semibold text-foreground">
+                {mostReadVertical ? verticalLabel(mostReadVertical) : "—"}
+              </p>
+              <p className="mt-0.5 text-xs text-muted">Most-read vertical</p>
+            </div>
+          </div>
         )}
       </section>
-    </main>
+    </div>
   );
 }

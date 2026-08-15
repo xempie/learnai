@@ -21,6 +21,7 @@ import {
   todayEdition,
   type AdminMetrics,
   type Colleague,
+  type ContentItem,
   type ContentSource,
   type CurrentUser,
   type Edition,
@@ -44,6 +45,25 @@ export async function getEditionByDate(editionDate: string): Promise<Edition | n
 
 export async function getPrompts(): Promise<Prompt[]> {
   return prompts;
+}
+
+/** Every published content item (news + technique + video) across every edition, most recent edition first. */
+export async function getAllContentItems(): Promise<ContentItem[]> {
+  return [...editions].reverse().flatMap((edition) => edition.items);
+}
+
+/** Single content item by slug, for `/content/[slug]` and search result links. */
+export async function getContentItemBySlug(slug: string): Promise<ContentItem | null> {
+  for (const edition of editions) {
+    const item = edition.items.find((candidate) => candidate.slug === slug);
+    if (item) return item;
+  }
+  return null;
+}
+
+/** The edition a content item belongs to — used to render its publish date. */
+export async function getEditionForContentItem(item: ContentItem): Promise<Edition | null> {
+  return editions.find((edition) => edition.id === item.editionId) ?? null;
 }
 
 export async function getContentSources(): Promise<ContentSource[]> {

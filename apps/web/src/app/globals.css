@@ -187,3 +187,27 @@ body {
 .animate-copy-flash {
   animation: copy-flash 1400ms ease-in-out;
 }
+
+/* Vertical video player's simulated playback surface (§7) — no real video
+   file, so a slow-drifting gradient stands in for "muted looping
+   playback". Neutralised under prefers-reduced-motion by the rule above. */
+.video-stage-gradient {
+  background-image: linear-gradient(135deg, var(--primary), #0e2338 45%, var(--accent-fill) 100%);
+  background-size: 220% 220%;
+}
+
+@keyframes video-drift {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.animate-video-drift {
+  animation: video-drift 14s ease-in-out infinite;
+}

@@ -50,7 +50,7 @@ export default async function DailyBriefPage() {
       </div>
 
       <div className="mt-8 border-t border-line pt-6">
-        <MarkDoneButton />
+        <MarkDoneButton editionDate={edition.editionDate} />
       </div>
     </div>
   );

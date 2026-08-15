@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CaptionsIcon, ClockIcon, PlayIcon, VideoIcon } from "@/components/icons";
 import type { ContentItem } from "@/lib/sample-data";
 
@@ -8,8 +9,9 @@ function formatDuration(seconds: number): string {
 }
 
 /**
- * The player itself is Phase 2 — this card ships the poster, play
- * affordance, duration and captions indicator the spec asks for (§7).
+ * The poster here links through to `/content/[slug]`, which hosts the full
+ * vertical video player (§7: portrait, one-handed controls, captions on by
+ * default) — this card stays a lightweight preview.
  */
 export function VideoCard({ item }: { item: ContentItem }) {
   return (
@@ -36,8 +38,8 @@ export function VideoCard({ item }: { item: ContentItem }) {
       <h2 className="mb-3 font-heading text-xl font-semibold text-foreground sm:text-2xl">{item.title}</h2>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <button
-          type="button"
+        <Link
+          href={`/content/${item.slug}`}
           aria-label={`Play ${item.title}`}
           className="group relative aspect-[9/16] w-full max-w-[220px] shrink-0 cursor-pointer overflow-hidden rounded-control bg-linear-to-br from-primary to-[#0e2338] text-left transition-transform duration-200 hover:scale-[1.02]"
         >
@@ -47,11 +49,11 @@ export function VideoCard({ item }: { item: ContentItem }) {
             </span>
           </span>
           {item.videoDurationS && (
-            <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-xs font-medium text-white tabular-nums">
+            <span className="absolute right-2 bottom-2 rounded bg-black/60 px-1.5 py-0.5 text-xs font-medium text-white tabular-nums">
               {formatDuration(item.videoDurationS)}
             </span>
           )}
-        </button>
+        </Link>
 
         <p className="max-w-prose text-[0.975rem] leading-relaxed text-foreground">{item.summary}</p>
       </div>
