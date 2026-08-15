@@ -23,7 +23,6 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages/agents/package.json packages/agents/package.json
 COPY packages/cohort/package.json packages/cohort/package.json
 COPY packages/db/package.json packages/db/package.json
-COPY packages/infra/package.json packages/infra/package.json
 COPY packages/ingestion/package.json packages/ingestion/package.json
 COPY packages/llm/package.json packages/llm/package.json
 RUN pnpm install --frozen-lockfile
