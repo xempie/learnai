@@ -45,6 +45,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+# App Runner injects its own HOSTNAME (an internal compute.internal DNS
+# name) into the container environment. The standalone server.js does
+# `process.env.HOSTNAME || "0.0.0.0"`, so without this override it binds
+# only to that platform-supplied hostname instead of all interfaces — App
+# Runner's health checker then can't reach it and the deployment fails
+# even though the app itself started fine. Force the wildcard bind.
+ENV HOSTNAME="0.0.0.0"
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
 
