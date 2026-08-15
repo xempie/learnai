@@ -33,6 +33,12 @@ export interface ContentSource {
   homepageUrl: string;
   tier: 1 | 2 | 3;
   vertical: Vertical;
+  /** Polled by PollSources when true (§5.1). Tier-3 sources stay active for idea-prompt harvesting even though they never feed a draft. */
+  active: boolean;
+  /** Consecutive failed fetch attempts — an operational health signal, not a content-quality one. */
+  consecutiveFailures: number;
+  /** ISO date of the most recent content item drafted from this source. Undefined for tier-3 (never drafted from, §5.4). */
+  lastItemAt?: string;
 }
 
 export interface ContentItem {
@@ -51,6 +57,8 @@ export interface ContentItem {
   sourceUrl?: string;
   sourceId?: string;
   sourceTier?: 1 | 2 | 3;
+  /** A short excerpt of the primary source article itself, for the reviewer console's source panel (§5.5) — distinct from `bodyMd`, which is the draft. */
+  sourceExcerpt?: string;
   status: ContentStatus;
   isPremium: boolean;
   authorKind: AuthorKind;
@@ -126,10 +134,18 @@ export interface ReviewQueueItem extends ContentItem {
   requiresSecondApproval: boolean;
   tierTwoVerificationRequired: boolean;
   submittedAt: string;
+  /** Draft edition this item belongs to — editions in review haven't been assembled into a published `Edition` yet, so this is a lightweight id/label pair rather than a join into `editions`. */
+  draftEditionId: string;
+  draftEditionLabel: string;
 }
 
 export interface MetricPoint {
   date: string; // ISO date
+  value: number;
+}
+
+export interface VerticalMetric {
+  vertical: Vertical;
   value: number;
 }
 
@@ -138,6 +154,19 @@ export interface AdminMetrics {
   opensPerDay: MetricPoint[];
   completionsPerDay: MetricPoint[];
   reviewTimeMinutesPerDay: MetricPoint[];
+  completionsByVertical: VerticalMetric[];
+  /** Users with an active (non-broken) streak right now — a scalar snapshot, not a series. */
+  activeStreaksCount: number;
+  /** Editions marked done within 24h of publish, as a percentage of that edition's audience. */
+  completionRatePct: number;
+  /** Email open rate — `null` because the email subsystem (§6) hasn't shipped yet; the KPI card renders this as an explicit "not yet available" placeholder rather than a fabricated number. */
+  openRatePct: number | null;
+}
+
+export interface AdminReviewer {
+  id: string;
+  displayName: string;
+  role: Extract<UserRole, "reviewer" | "admin">;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,6 +180,9 @@ export const contentSources: ContentSource[] = [
     homepageUrl: "https://www.afr.com",
     tier: 1,
     vertical: "general",
+    active: true,
+    consecutiveFailures: 0,
+    lastItemAt: "2026-08-15",
   },
   {
     id: "src-abc",
@@ -158,6 +190,8 @@ export const contentSources: ContentSource[] = [
     homepageUrl: "https://www.abc.net.au/news",
     tier: 1,
     vertical: "general",
+    active: true,
+    consecutiveFailures: 0,
   },
   {
     id: "src-itnews",
@@ -165,6 +199,9 @@ export const contentSources: ContentSource[] = [
     homepageUrl: "https://www.itnews.com.au",
     tier: 1,
     vertical: "general",
+    active: true,
+    consecutiveFailures: 0,
+    lastItemAt: "2026-08-15",
   },
   {
     id: "src-caudit",
@@ -172,6 +209,9 @@ export const contentSources: ContentSource[] = [
     homepageUrl: "https://www.caudit.edu.au",
     tier: 1,
     vertical: "teaching",
+    active: true,
+    consecutiveFailures: 0,
+    lastItemAt: "2026-08-07",
   },
   {
     id: "src-smartcompany",
@@ -179,6 +219,9 @@ export const contentSources: ContentSource[] = [
     homepageUrl: "https://www.smartcompany.com.au",
     tier: 2,
     vertical: "marketing",
+    active: true,
+    consecutiveFailures: 0,
+    lastItemAt: "2026-08-15",
   },
   {
     id: "src-ahri",
@@ -186,6 +229,9 @@ export const contentSources: ContentSource[] = [
     homepageUrl: "https://www.ahri.com.au",
     tier: 1,
     vertical: "management",
+    active: true,
+    consecutiveFailures: 0,
+    lastItemAt: "2026-08-11",
   },
   {
     id: "src-racgp",
@@ -193,6 +239,27 @@ export const contentSources: ContentSource[] = [
     homepageUrl: "https://www1.racgp.org.au/newsgp",
     tier: 1,
     vertical: "health",
+    active: true,
+    consecutiveFailures: 3,
+    lastItemAt: "2026-08-13",
+  },
+  {
+    id: "src-reddit-artificial",
+    name: "r/artificial (Reddit)",
+    homepageUrl: "https://www.reddit.com/r/artificial",
+    tier: 3,
+    vertical: "general",
+    active: true,
+    consecutiveFailures: 0,
+  },
+  {
+    id: "src-social-scan",
+    name: "AI marketing social scan",
+    homepageUrl: "https://x.com/search?q=%23AImarketing",
+    tier: 3,
+    vertical: "marketing",
+    active: false,
+    consecutiveFailures: 6,
   },
 ];
 
@@ -730,6 +797,43 @@ export const organisation: Organisation = {
   claimedBy: "usr-admin-macquarie",
 };
 
+/**
+ * Auto-created organisations awaiting an admin rename (§4.1) — distinct
+ * from `organisation` above (the one org the member-facing sample data
+ * belongs to, already claimed/named). `/admin/organisations` restyles
+ * T06's rename queue against this list, sample-data mode, same as the
+ * cohort page's relationship to T06's `/org/:slug` API.
+ */
+export const pendingOrganisations: Organisation[] = [
+  {
+    id: "org-auto-01",
+    name: "Bmc.com.au",
+    slug: "bmc-com-au",
+    primaryDomain: "bmc.com.au",
+    kind: "corporate",
+    memberCount: 6,
+    autoCreated: true,
+  },
+  {
+    id: "org-auto-02",
+    name: "Stgeorge.nsw.gov.au",
+    slug: "stgeorge-nsw-gov-au",
+    primaryDomain: "stgeorge.nsw.gov.au",
+    kind: "government",
+    memberCount: 3,
+    autoCreated: true,
+  },
+  {
+    id: "org-auto-03",
+    name: "Fernwoodfitness.com.au",
+    slug: "fernwoodfitness-com-au",
+    primaryDomain: "fernwoodfitness.com.au",
+    kind: "sme",
+    memberCount: 2,
+    autoCreated: true,
+  },
+];
+
 export const colleagues: Colleague[] = [
   { id: "col-01", displayName: "Priya Natarajan", currentStreak: 34, showInCohort: true },
   { id: "col-02", displayName: "Tom Halloran", currentStreak: 21, showInCohort: true },
@@ -780,6 +884,8 @@ export const reviewQueue: ReviewQueueItem[] = [
     sourceUrl: "https://www.itnews.com.au/news/nsw-ai-correspondence-pilot-2026",
     sourceId: "src-itnews",
     sourceTier: 1,
+    sourceExcerpt:
+      "“The pilot covers three agencies handling high volumes of routine constituent correspondence,” a Department of Customer Service spokesperson said. “Every AI-assisted draft is reviewed by a staff member before it is sent, and nothing involving a specific commitment or dollar figure is auto-approved.” The department said it would report back to Cabinet after a six-month trial period.",
     status: "in_review",
     isPremium: false,
     authorKind: "agent",
@@ -788,6 +894,8 @@ export const reviewQueue: ReviewQueueItem[] = [
     requiresSecondApproval: false,
     tierTwoVerificationRequired: false,
     submittedAt: "2026-08-15T02:10:00Z",
+    draftEditionId: "ed-2026-08-16-draft",
+    draftEditionLabel: "16 August edition (draft)",
   },
   {
     id: "ci-review-02",
@@ -803,6 +911,8 @@ export const reviewQueue: ReviewQueueItem[] = [
     sourceUrl: "https://www.smartcompany.com.au/legal/regional-firms-ai-redlining-2026",
     sourceId: "src-smartcompany",
     sourceTier: 2,
+    sourceExcerpt:
+      "Partners at three regional firms interviewed for this piece described turnaround on first-pass contract review dropping from days to hours after adopting AI-assisted redlining. All three stressed the tool surfaces issues for a lawyer to weigh up — it does not itself decide what is acceptable in a clause.",
     status: "in_review",
     isPremium: false,
     authorKind: "agent",
@@ -811,6 +921,8 @@ export const reviewQueue: ReviewQueueItem[] = [
     requiresSecondApproval: false,
     tierTwoVerificationRequired: true,
     submittedAt: "2026-08-15T02:25:00Z",
+    draftEditionId: "ed-2026-08-16-draft",
+    draftEditionLabel: "16 August edition (draft)",
   },
   {
     id: "ci-review-03",
@@ -831,6 +943,8 @@ export const reviewQueue: ReviewQueueItem[] = [
     requiresSecondApproval: true,
     tierTwoVerificationRequired: false,
     submittedAt: "2026-08-15T03:05:00Z",
+    draftEditionId: "ed-2026-08-17-draft",
+    draftEditionLabel: "17 August edition (draft)",
   },
   {
     id: "ci-review-04",
@@ -850,8 +964,22 @@ export const reviewQueue: ReviewQueueItem[] = [
     requiresSecondApproval: false,
     tierTwoVerificationRequired: false,
     submittedAt: "2026-08-15T03:40:00Z",
+    draftEditionId: "ed-2026-08-17-draft",
+    draftEditionLabel: "17 August edition (draft)",
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Admin reviewer identity (§5.5) — the signed-in reviewer for the sample
+// admin console. A real session would come from Auth.js; this is the
+// UI-Phase-3 stand-in, same pattern `currentUser` is for member pages.
+// ---------------------------------------------------------------------------
+
+export const currentReviewer: AdminReviewer = {
+  id: "usr-reviewer-vala",
+  displayName: "Dr Vala Rohani",
+  role: "admin",
+};
 
 // ---------------------------------------------------------------------------
 // Admin metrics (§3.7) — 30-day series, deterministic (no Math.random, so
@@ -878,4 +1006,18 @@ export const adminMetrics: AdminMetrics = {
   opensPerDay: seededSeries(220, 60, 7),
   completionsPerDay: seededSeries(150, 45, 13),
   reviewTimeMinutesPerDay: seededSeries(4, 2, 21),
+  completionsByVertical: [
+    { vertical: "general", value: 412 },
+    { vertical: "marketing", value: 304 },
+    { vertical: "management", value: 279 },
+    { vertical: "teaching", value: 268 },
+    { vertical: "learning", value: 231 },
+    { vertical: "health", value: 96 },
+  ],
+  activeStreaksCount: 812,
+  completionRatePct: 71.4,
+  // Email subsystem (§6) hasn't shipped yet, so there is no real open-rate
+  // signal to show — `null` renders as an explicit "not available" KPI
+  // card rather than a fabricated number.
+  openRatePct: null,
 };

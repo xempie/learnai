@@ -286,3 +286,83 @@ export const TriangleAlertIcon = createIcon(
     <path d="M12 17h.01" />
   </>,
 );
+
+export const PencilIcon = createIcon(
+  "PencilIcon",
+  <>
+    <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .622.624l4.353-1.32a2 2 0 0 0 .83-.497z" />
+    <path d="m15 5 4 4" />
+  </>,
+);
+
+export const ExternalLinkIcon = createIcon(
+  "ExternalLinkIcon",
+  <>
+    <path d="M15 3h6v6" />
+    <path d="M10 14 21 3" />
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+  </>,
+);
+
+export const ChevronLeftIcon = createIcon("ChevronLeftIcon", <path d="m15 18-6-6 6-6" />);
+
+export const ChevronRightIcon = createIcon("ChevronRightIcon", <path d="m9 18 6-6-6-6" />);
+
+export const ChevronDownIcon = createIcon("ChevronDownIcon", <path d="m6 9 6 6 6-6" />);
+
+export const MenuIcon = createIcon(
+  "MenuIcon",
+  <>
+    <path d="M4 12h16" />
+    <path d="M4 6h16" />
+    <path d="M4 18h16" />
+  </>,
+);
+
+export const ClipboardCheckIcon = createIcon(
+  "ClipboardCheckIcon",
+  <>
+    <rect width="8" height="4" x="8" y="2" rx="1" />
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <path d="m9 14 2 2 4-4" />
+  </>,
+);
+
+export const ChartLineIcon = createIcon(
+  "ChartLineIcon",
+  <>
+    <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+    <path d="m19 9-5 5-4-4-3 3" />
+  </>,
+);
+
+export const Building2Icon = createIcon(
+  "Building2Icon",
+  <>
+    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+    <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+    <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+    <path d="M10 6h4" />
+    <path d="M10 10h4" />
+    <path d="M10 14h4" />
+    <path d="M10 18h4" />
+  </>,
+);
+
+export const RssIcon = createIcon(
+  "RssIcon",
+  <>
+    <path d="M4 11a9 9 0 0 1 9 9" />
+    <path d="M4 4a16 16 0 0 1 16 16" />
+    <circle cx="5" cy="19" r="1" />
+  </>,
+);
+
+export const LightbulbIcon = createIcon(
+  "LightbulbIcon",
+  <>
+    <path d="M15 14c.2-1 .7-1.7 1.5-2.5A5.4 5.4 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.8.8 1.3 1.5 1.5 2.5" />
+    <path d="M9 18h6" />
+    <path d="M10 22h4" />
+  </>,
+);

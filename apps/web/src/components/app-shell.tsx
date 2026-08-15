@@ -42,6 +42,15 @@ export function AppShell({
   const [pulse, setPulse] = useState(false);
   const pulseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Admin routes (design-system/pages/admin-review.md: dense-dashboard
+  // override) get their own left-sidebar shell — `AdminShell` — rather
+  // than the member masthead/bottom-tab chrome below. This early return
+  // keeps that decision in one place instead of threading an "isAdmin"
+  // flag through every render branch further down.
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    return <div className="min-h-dvh bg-background text-foreground">{children}</div>;
+  }
+
   function bumpStreak() {
     setStreakCount((count) => count + 1);
     setPulse(true);

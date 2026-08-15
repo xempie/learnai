@@ -4,10 +4,12 @@ import {
   getColleagues,
   getContentSource,
   getContentSources,
+  getCurrentReviewer,
   getCurrentUser,
   getEditionByDate,
   getEditions,
   getOrganisation,
+  getPendingOrganisations,
   getPrompts,
   getReviewQueue,
   getTodayEdition,
@@ -66,13 +68,29 @@ describe("data-source (sample-data backed today)", () => {
     expect(await getReviewQueue()).toHaveLength(4);
   });
 
-  it("getAdminMetrics returns all four series", async () => {
+  it("getAdminMetrics returns every series and scalar KPI", async () => {
     const metrics = await getAdminMetrics();
     expect(Object.keys(metrics)).toEqual([
       "signupsPerDay",
       "opensPerDay",
       "completionsPerDay",
       "reviewTimeMinutesPerDay",
+      "completionsByVertical",
+      "activeStreaksCount",
+      "completionRatePct",
+      "openRatePct",
     ]);
+  });
+
+  it("getCurrentReviewer returns the sample reviewer", async () => {
+    const reviewer = await getCurrentReviewer();
+    expect(reviewer.role).toBe("admin");
+    expect(reviewer.displayName).toBeTruthy();
+  });
+
+  it("getPendingOrganisations returns auto-created organisations awaiting rename", async () => {
+    const pending = await getPendingOrganisations();
+    expect(pending.length).toBeGreaterThan(0);
+    expect(pending.every((org) => org.autoCreated)).toBe(true);
   });
 });

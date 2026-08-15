@@ -3,13 +3,16 @@ import {
   adminMetrics,
   colleagues,
   contentSources,
+  currentReviewer,
   currentUser,
   editions,
   organisation,
+  pendingOrganisations,
   prompts,
   reviewQueue,
   todayEdition,
 } from "./sample-data";
+import { VERTICALS } from "./verticals";
 
 describe("editions", () => {
   it("has 10 published editions, each with exactly one news/technique/video item", () => {
@@ -108,6 +111,17 @@ describe("reviewQueue", () => {
   it("includes at least one health item requiring second approval (§5.4)", () => {
     expect(reviewQueue.some((item) => item.vertical === "health" && item.requiresSecondApproval)).toBe(true);
   });
+
+  it("is grouped into draft editions, and oldest-first ordering keeps each group contiguous", () => {
+    for (const item of reviewQueue) {
+      expect(item.draftEditionId).toBeTruthy();
+      expect(item.draftEditionLabel).toBeTruthy();
+    }
+    const submittedAsc = [...reviewQueue].every(
+      (item, index) => index === 0 || reviewQueue[index - 1]!.submittedAt <= item.submittedAt,
+    );
+    expect(submittedAsc).toBe(true);
+  });
 });
 
 describe("contentSources", () => {
@@ -121,10 +135,21 @@ describe("contentSources", () => {
       }
     }
   });
+
+  it("includes at least one tier-3 idea-prompt-only source", () => {
+    expect(contentSources.some((source) => source.tier === 3)).toBe(true);
+  });
+
+  it("every source has an active flag and a consecutive-failures count", () => {
+    for (const source of contentSources) {
+      expect(typeof source.active).toBe("boolean");
+      expect(source.consecutiveFailures).toBeGreaterThanOrEqual(0);
+    }
+  });
 });
 
 describe("adminMetrics", () => {
-  it("has 30-day series for every metric", () => {
+  it("has 30-day series for every daily metric", () => {
     expect(adminMetrics.signupsPerDay).toHaveLength(30);
     expect(adminMetrics.opensPerDay).toHaveLength(30);
     expect(adminMetrics.completionsPerDay).toHaveLength(30);
@@ -135,5 +160,37 @@ describe("adminMetrics", () => {
     // Re-importing the same module instance is inherent to the module
     // cache, so this really just documents the generator's contract.
     expect(adminMetrics.signupsPerDay[0]?.value).toBe(adminMetrics.signupsPerDay[0]?.value);
+  });
+
+  it("has a completions-by-vertical entry for every vertical", () => {
+    expect(adminMetrics.completionsByVertical).toHaveLength(VERTICALS.length);
+    expect(new Set(adminMetrics.completionsByVertical.map((v) => v.vertical))).toEqual(new Set(VERTICALS));
+    expect(adminMetrics.completionsByVertical.every((v) => v.value >= 0)).toBe(true);
+  });
+
+  it("openRatePct is null (email subsystem not shipped yet) rather than a fabricated number", () => {
+    expect(adminMetrics.openRatePct).toBeNull();
+  });
+
+  it("activeStreaksCount and completionRatePct are positive scalars", () => {
+    expect(adminMetrics.activeStreaksCount).toBeGreaterThan(0);
+    expect(adminMetrics.completionRatePct).toBeGreaterThan(0);
+    expect(adminMetrics.completionRatePct).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("currentReviewer", () => {
+  it("is a reviewer/admin role, distinct from the member currentUser", () => {
+    expect(["reviewer", "admin"]).toContain(currentReviewer.role);
+    expect(currentReviewer.id).not.toBe(currentUser.id);
+  });
+});
+
+describe("pendingOrganisations", () => {
+  it("are all auto-created with unique ids, distinct from the claimed sample organisation", () => {
+    expect(pendingOrganisations.length).toBeGreaterThan(0);
+    expect(pendingOrganisations.every((org) => org.autoCreated)).toBe(true);
+    expect(new Set(pendingOrganisations.map((org) => org.id)).size).toBe(pendingOrganisations.length);
+    expect(pendingOrganisations.some((org) => org.id === organisation.id)).toBe(false);
   });
 });

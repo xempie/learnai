@@ -13,13 +13,16 @@ import {
   adminMetrics,
   colleagues,
   contentSources,
+  currentReviewer,
   currentUser,
   editions,
   organisation,
+  pendingOrganisations,
   prompts,
   reviewQueue,
   todayEdition,
   type AdminMetrics,
+  type AdminReviewer,
   type Colleague,
   type ContentItem,
   type ContentSource,
@@ -92,4 +95,12 @@ export async function getReviewQueue(): Promise<ReviewQueueItem[]> {
 
 export async function getAdminMetrics(): Promise<AdminMetrics> {
   return adminMetrics;
+}
+
+export async function getCurrentReviewer(): Promise<AdminReviewer> {
+  return currentReviewer;
+}
+
+export async function getPendingOrganisations(): Promise<Organisation[]> {
+  return pendingOrganisations;
 }
